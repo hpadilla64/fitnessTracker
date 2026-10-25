@@ -33,7 +33,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       whileHover={{ y: -3, transition: { duration: 0.2 } }}
     >
       <Card
-        bordered={false}
+        variant="borderless"
         style={{
           borderRadius: 12,
           background: 'linear-gradient(145deg, #1b2234 0%, #151a28 100%)',
@@ -42,7 +42,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           position: 'relative',
           overflow: 'hidden',
         }}
-        bodyStyle={{ padding: '20px 24px' }}
+        styles={{ body: { padding: '20px 24px' } }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
@@ -53,7 +53,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               value={value}
               suffix={suffix}
               prefix={prefix}
-              valueStyle={{ color: '#fff', fontSize: 26, fontWeight: 700 }}
+              styles={{ content: { color: '#fff', fontSize: 26, fontWeight: 700 } }}
             />
           </div>
           {icon && (

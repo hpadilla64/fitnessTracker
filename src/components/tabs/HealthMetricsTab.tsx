@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Row, Col, Card, Segmented, Typography, Empty, Space } from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Row, Col, Card, Segmented, Typography, Empty, Space, Spin, Alert } from 'antd';
 import {
   FireOutlined,
   HeartOutlined,
@@ -9,30 +9,47 @@ import {
   FieldTimeOutlined,
 } from '@ant-design/icons';
 import { Area, Column, Pie, Line } from '@ant-design/plots';
-import { UserProfile, DailyMetric } from '../../types';
+import { UserProfile } from '@/types';
+import type { DailyResponse } from '@/types/api';
 import { MetricCard } from '../MetricCard';
-import { filterDailyMetrics, aggregateMetricsByPeriod, TimeRangeKey } from '../../services/dataService';
+import { fetchDaily, TimeRangeKey } from '@/services/dataService';
 
 const { Title, Text } = Typography;
 
 interface HealthMetricsTabProps {
   profile: UserProfile;
-  dailyMetrics: DailyMetric[];
+  timeRange: TimeRangeKey;
+  onTimeRangeChange: (range: TimeRangeKey) => void;
 }
 
-export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dailyMetrics }) => {
-  const [timeRange, setTimeRange] = useState<TimeRangeKey>('1y');
+export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, timeRange, onTimeRangeChange }) => {
+  const [data, setData] = useState<DailyResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter metrics based on selected time range
-  const filteredDaily = useMemo(() => {
-    return filterDailyMetrics(dailyMetrics, timeRange);
-  }, [dailyMetrics, timeRange]);
+  // Fetch the daily series (and chart-ready aggregation) for the selected range
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchDaily(timeRange)
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err) => {
+        console.error('Failed to load daily metrics:', err);
+        if (!cancelled) setError('Failed to load daily metrics.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [timeRange]);
 
-  // Downsample if range is all or 3y to ensure buttery smooth performance
-  const chartData = useMemo(() => {
-    const period = timeRange === 'all' ? 'monthly' : timeRange === '3y' ? 'weekly' : 'daily';
-    return aggregateMetricsByPeriod(filteredDaily, period);
-  }, [filteredDaily, timeRange]);
+  const filteredDaily = useMemo(() => data?.daily ?? [], [data]);
+  const chartData = useMemo(() => data?.aggregated ?? [], [data]);
 
   // Weight & BMI records (only entries where weight is present)
   const weightData = useMemo(() => {
@@ -231,7 +248,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
           <Text style={{ color: '#8c9ba5', fontSize: 13 }}>Timeline Filter:</Text>
           <Segmented<TimeRangeKey>
             value={timeRange}
-            onChange={(val) => setTimeRange(val)}
+            onChange={(val) => onTimeRangeChange(val)}
             options={[
               { label: '30 Days', value: '30d' },
               { label: '90 Days', value: '90d' },
@@ -243,6 +260,8 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
         </Space>
       </div>
 
+      {error && <Alert title={error} type="error" showIcon style={{ marginBottom: 16 }} />}
+      <Spin spinning={loading}>
       {/* KPI Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={4}>
@@ -330,7 +349,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
                 <span>Body Weight & BMI Progression</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
           >
             {weightData.length > 0 ? (
@@ -350,7 +369,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
                 <span>Daily Steps & Walking Activity</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
           >
             {stepsData.length > 0 ? (
@@ -370,7 +389,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
                 <span>Daily Energy Burn: Active vs Basal (kcal)</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
           >
             {energyData.length > 0 ? (
@@ -390,7 +409,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
                 <span>Cardiovascular Health (Resting HR & VO2 Max)</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
           >
             {vitalsData.length > 0 ? (
@@ -410,7 +429,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
                 <span>Workout Distribution by Activity Type</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
           >
             <Pie {...pieConfig} />
@@ -426,7 +445,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
                 <span>Sleep Duration (Hours per Night)</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
           >
             {sleepData.length > 0 ? (
@@ -437,6 +456,7 @@ export const HealthMetricsTab: React.FC<HealthMetricsTabProps> = ({ profile, dai
           </Card>
         </Col>
       </Row>
+      </Spin>
     </div>
   );
 };

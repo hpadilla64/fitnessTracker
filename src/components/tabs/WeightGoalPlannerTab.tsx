@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Row,
   Col,
@@ -32,24 +32,90 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import { Line } from '@ant-design/plots';
-import { UserProfile, WeightGoalConfig, RoutineExercise, TrainingFocus } from '../../types';
-import { evaluateWeightGoalAndRecommendRoutine, DEFAULT_WEIGHT_KG } from '../../services/recommendationEngine';
+import { UserProfile, WeightGoalConfig, RoutineExercise, TrainingFocus } from '@/types';
+import { evaluateWeightGoalAndRecommendRoutine, DEFAULT_WEIGHT_KG } from '@/services/recommendationEngine';
+import { fetchGoal, saveGoal } from '@/services/dataService';
+import type { UserPreferences, PreferencesUpdate } from '@/types/api';
 
 const { Title, Text, Paragraph } = Typography;
 
+const WEIGHT_MIN_KG = 40;
+const WEIGHT_MAX_KG = 200;
+
 interface WeightGoalPlannerTabProps {
   profile: UserProfile;
+  preferences: UserPreferences | null;
+  onSavePreference: (update: PreferencesUpdate) => void;
 }
 
-export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ profile }) => {
+const SAVE_DEBOUNCE_MS = 600;
+
+export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ profile, preferences, onSavePreference }) => {
   const initialCurrentWeight = profile.currentWeight || DEFAULT_WEIGHT_KG;
 
   // Form states
   const [currentWeight, setCurrentWeight] = useState<number>(initialCurrentWeight);
   const [targetWeight, setTargetWeight] = useState<number>(Math.max(60, Math.round((initialCurrentWeight - 12) * 10) / 10));
   const [timeframeWeeks, setTimeframeWeeks] = useState<number>(16);
-  const [workoutDays, setWorkoutDays] = useState<number>(4);
-  const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>('balanced');
+  const [workoutDays, setWorkoutDays] = useState<number>(preferences?.workoutDaysPerWeek ?? 4);
+  const [trainingFocus, setTrainingFocus] = useState<TrainingFocus>(preferences?.trainingFocus ?? 'balanced');
+
+  // Persistence: the saved goal is loaded once; edits are saved debounced, never overwriting local input
+  const goalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPrefs = useRef<PreferencesUpdate>({});
+  const latest = useRef({ currentWeight, targetWeight, timeframeWeeks });
+  latest.current = { currentWeight, targetWeight, timeframeWeeks };
+  const touched = useRef(false); // true once the user edits before the saved goal arrives
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchGoal()
+      .then((g) => {
+        if (cancelled || !g || touched.current) return;
+        setCurrentWeight(g.startWeightKg);
+        setTargetWeight(g.targetWeightKg);
+        setTimeframeWeeks(g.timeframeWeeks);
+      })
+      .catch((err) => console.error('Failed to load goal:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const scheduleGoalSave = useCallback(() => {
+    touched.current = true;
+    if (goalTimer.current) clearTimeout(goalTimer.current);
+    goalTimer.current = setTimeout(() => {
+      const { currentWeight: s, targetWeight: t, timeframeWeeks: w } = latest.current;
+      saveGoal({ startWeightKg: s, targetWeightKg: t, timeframeWeeks: w }).catch((err) =>
+        console.error('Failed to save goal:', err)
+      );
+    }, SAVE_DEBOUNCE_MS);
+  }, []);
+
+  const schedulePrefSave = useCallback(
+    (update: PreferencesUpdate) => {
+      pendingPrefs.current = { ...pendingPrefs.current, ...update };
+      if (prefTimer.current) clearTimeout(prefTimer.current);
+      prefTimer.current = setTimeout(() => {
+        onSavePreference(pendingPrefs.current);
+        pendingPrefs.current = {};
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [onSavePreference]
+  );
+
+  // Edit handlers: update state immediately, persist after the debounce
+  const editCurrentWeight = (v: number) => { setCurrentWeight(v); latest.current.currentWeight = v; scheduleGoalSave(); };
+  const editTargetWeight = (v: number) => { setTargetWeight(v); latest.current.targetWeight = v; scheduleGoalSave(); };
+  // Ignore cleared or partially typed values (e.g. "8" on the way to "85") instead of snapping to a default
+  const acceptWeight = (v: number | null, apply: (kg: number) => void) => {
+    if (v !== null && v >= WEIGHT_MIN_KG && v <= WEIGHT_MAX_KG) apply(v);
+  };
+  const editTimeframe = (v: number) => { setTimeframeWeeks(v); latest.current.timeframeWeeks = v; scheduleGoalSave(); };
+  const editWorkoutDays = (v: number) => { setWorkoutDays(v); schedulePrefSave({ workoutDaysPerWeek: v }); };
+  const editFocus = (v: TrainingFocus) => { setTrainingFocus(v); schedulePrefSave({ trainingFocus: v }); };
 
   // Modal state for viewing full exercise details
   const [selectedSession, setSelectedSession] = useState<RoutineExercise | null>(null);
@@ -112,7 +178,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
       key: 'day',
       width: 110,
       render: (day: string, record: RoutineExercise) => (
-        <Space direction="vertical" size={2}>
+        <Space orientation="vertical" size={2}>
           <Text strong style={{ color: record.isRest ? '#8c9ba5' : '#fff' }}>
             {day}
           </Text>
@@ -249,7 +315,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                 <span>Configure Your Target & Timeframe</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28', height: '100%' }}
           >
             <Form layout="vertical">
@@ -257,11 +323,11 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                 <Col span={12}>
                   <Form.Item label={<span style={{ color: '#d9d9d9' }}>Current Weight (kg)</span>}>
                     <InputNumber
-                      min={40}
-                      max={200}
+                      min={WEIGHT_MIN_KG}
+                      max={WEIGHT_MAX_KG}
                       step={0.5}
                       value={currentWeight}
-                      onChange={(v) => setCurrentWeight(v || initialCurrentWeight)}
+                      onChange={(v) => acceptWeight(v, editCurrentWeight)}
                       style={{ width: '100%' }}
                     />
                     <div style={{ marginTop: 4 }}>
@@ -269,7 +335,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                         type="link"
                         size="small"
                         style={{ padding: 0, fontSize: 11 }}
-                        onClick={() => setCurrentWeight(initialCurrentWeight)}
+                        onClick={() => editCurrentWeight(initialCurrentWeight)}
                       >
                         Reset to latest recorded ({initialCurrentWeight} kg)
                       </Button>
@@ -280,11 +346,11 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                 <Col span={12}>
                   <Form.Item label={<span style={{ color: '#d9d9d9' }}>Target Weight (kg)</span>}>
                     <InputNumber
-                      min={40}
-                      max={200}
+                      min={WEIGHT_MIN_KG}
+                      max={WEIGHT_MAX_KG}
                       step={0.5}
                       value={targetWeight}
-                      onChange={(v) => setTargetWeight(v || 85)}
+                      onChange={(v) => acceptWeight(v, editTargetWeight)}
                       style={{ width: '100%' }}
                     />
                     <div style={{ marginTop: 4, fontSize: 11, color: '#8c9ba5' }}>
@@ -306,7 +372,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                   max={52}
                   marks={{ 4: '4w', 12: '12w', 24: '24w', 36: '36w', 52: '1y' }}
                   value={timeframeWeeks}
-                  onChange={(v) => setTimeframeWeeks(v)}
+                  onChange={(v) => editTimeframe(v)}
                 />
               </Form.Item>
 
@@ -315,7 +381,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                   <Form.Item label={<span style={{ color: '#d9d9d9' }}>Weekly Workout Frequency</span>}>
                     <Select
                       value={workoutDays}
-                      onChange={(v) => setWorkoutDays(v)}
+                      onChange={(v) => editWorkoutDays(v)}
                       options={[
                         { label: '3 Days / Week (Full Body)', value: 3 },
                         { label: '4 Days / Week (Upper/Lower Split)', value: 4 },
@@ -330,7 +396,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                   <Form.Item label={<span style={{ color: '#d9d9d9' }}>Training Focus</span>}>
                     <Select
                       value={trainingFocus}
-                      onChange={(v) => setTrainingFocus(v as TrainingFocus)}
+                      onChange={(v) => editFocus(v as TrainingFocus)}
                       options={[
                         { label: 'Balanced (Cardio & Strength)', value: 'balanced' },
                         { label: 'Incline Walk & Zone 2 Cardio', value: 'cardio' },
@@ -354,12 +420,12 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                 <span>Caloric Deficit & Feasibility Analysis</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28', height: '100%' }}
           >
             {/* Feasibility Alert */}
             <Alert
-              message={
+              title={
                 <Space>
                   {evaluation.status === 'safe' && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
                   {evaluation.status === 'moderate' && <InfoCircleOutlined style={{ color: '#faad14' }} />}
@@ -391,7 +457,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Required Daily Deficit</span>}
                     value={evaluation.dailyDeficitKcal}
                     suffix="kcal"
-                    valueStyle={{ color: '#fa8c16', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#fa8c16', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -401,7 +467,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Target Caloric Intake</span>}
                     value={evaluation.targetIntakeKcal}
                     suffix="kcal"
-                    valueStyle={{ color: '#52c41a', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#52c41a', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -411,7 +477,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Weekly Workout Burn</span>}
                     value={totalWeeklyBurn}
                     suffix="kcal"
-                    valueStyle={{ color: '#1890ff', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#1890ff', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -421,7 +487,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Weekly Active Time</span>}
                     value={totalWeeklyMinutes}
                     suffix="min"
-                    valueStyle={{ color: '#722ed1', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#722ed1', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -453,7 +519,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
             </Button>
           </div>
         }
-        bordered={false}
+        variant="borderless"
         style={{ borderRadius: 12, background: '#151a28' }}
       >
         <Paragraph style={{ color: '#8c9ba5' }}>

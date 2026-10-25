@@ -75,7 +75,16 @@ export function evaluateWeightGoalAndRecommendRoutine(
     : Math.round(tdee + rawDailyDeficitKcal);
 
   // Generate Personalized 7-Day Routine
-  const routine = generateWeeklyRoutine(daysPerWeek, focus, isLoss, exerciseDeficitKcal);
+  const routine = generateWeeklyRoutine({
+    daysPerWeek,
+    focus,
+    isLoss,
+    isGain,
+    weeklyChangeKg,
+    status,
+    exerciseDeficitKcal,
+    weightKg: currentWeight,
+  });
 
   // Generate projected trajectory for chart
   const projectedTrajectory = [];
@@ -112,16 +121,67 @@ export function evaluateWeightGoalAndRecommendRoutine(
   };
 }
 
-function generateWeeklyRoutine(
-  daysPerWeek: number,
-  focus: string,
-  isLoss: boolean,
-  targetExerciseDeficit: number
-): RoutineExercise[] {
-  // Scaling calorie targets based on target deficit
-  const baseCardioKcal = Math.max(350, Math.min(650, 400 + Math.round(targetExerciseDeficit * 0.4)));
-  const baseStrengthKcal = Math.max(300, Math.min(550, 350 + Math.round(targetExerciseDeficit * 0.3)));
-  const baseHiitKcal = Math.max(400, Math.min(700, 450 + Math.round(targetExerciseDeficit * 0.5)));
+interface RoutineInput {
+  daysPerWeek: number;
+  focus: string;
+  isLoss: boolean;
+  isGain: boolean;
+  weeklyChangeKg: number;
+  status: 'safe' | 'moderate' | 'aggressive' | 'extreme';
+  exerciseDeficitKcal: number;
+  weightKg: number;
+}
+
+// Energy cost from duration and intensity: kcal = MET x body weight (kg) x hours
+const kcalFor = (met: number, weightKg: number, minutes: number) => Math.round(met * weightKg * (minutes / 60));
+const addSet = (sets: string, extra: number) => String(Number(sets) + extra);
+
+// Pure function: routine scales with the goal's required pace (tier 0-3 for loss), gain emphasises strength
+function generateWeeklyRoutine(input: RoutineInput): RoutineExercise[] {
+  const { daysPerWeek, focus, isLoss, isGain, weeklyChangeKg, status, exerciseDeficitKcal, weightKg } = input;
+
+  const tier = !isLoss ? 1 : weeklyChangeKg <= 0.25 ? 0 : weeklyChangeKg <= 0.5 ? 1 : weeklyChangeKg <= 1.0 ? 2 : 3;
+  const strengthMin = isGain ? 55 : [40, 50, 55, 60][tier];
+  const cardioMin = isGain ? 30 : [35, 45, 55, 65][tier];
+  const hiitMin = isGain ? 20 : [25, 30, 35, 40][tier];
+  const recoveryMin = isLoss && tier === 3 ? 40 : 30;
+  const finisherMin = isLoss ? [0, 0, 10, 20][tier] : 0;
+  const extraSets = isGain ? 1 : 0;
+  const hiMet = tier >= 2 ? 9.5 : 8.5;
+
+  const cardioZone =
+    isLoss && tier === 3
+      ? 'Zone 2-3 (120 - 145 bpm) with 4 x 3 min Zone 4 intervals'
+      : isLoss && tier === 2
+        ? 'Zone 2-3 (120 - 140 bpm) / Brisk Pace'
+        : 'Zone 2 (115 - 130 bpm) / Conversational Pace';
+  const cardioMet = isLoss && tier === 3 ? 7.5 : isLoss && tier === 2 ? 6.5 : 5;
+  const cardioKm = (cardioMin * (tier >= 2 && isLoss ? 0.125 : 0.11)).toFixed(1);
+  const cardioTitle =
+    isLoss && tier === 3
+      ? 'Zone 2-3 Tempo Walk with Intervals'
+      : isLoss && tier === 2
+        ? 'Zone 2-3 Brisk Incline Walk'
+        : 'Zone 2 Aerobic Fat Oxidation & Incline Walk';
+  const strengthMet = 5;
+
+  const strengthTip = isGain
+    ? 'Surplus phase: push main lifts toward 1-2 reps in reserve, rest 90-120s, and progress load every 1-2 weeks.'
+    : tier >= 2
+      ? 'Deficit is large: keep loads heavy to protect muscle, keep rest to 45-75s, and finish with the cardio block.'
+      : 'Keep rest intervals strictly between 60-90s to maximize metabolic caloric output while preserving muscle.';
+
+  const finisher = finisherMin > 0
+    ? [{ name: `${finisherMin}-minute Cardio Finisher (incline walk / bike)`, sets: '1', repsOrDuration: `${finisherMin} mins`, notes: 'Zone 2-3 steady effort right after the lifts' }]
+    : [];
+  const withFinisher = <T extends { name: string; sets: string; repsOrDuration: string; notes: string }>(list: T[]) => [...list, ...finisher];
+  const strengthMinTotal = strengthMin + finisherMin;
+  const finisherNote = finisherMin > 0 ? ` + ${finisherMin} min cardio finisher` : '';
+
+  const baseCardioKcal = kcalFor(cardioMet, weightKg, cardioMin);
+  const baseStrengthKcal = kcalFor(strengthMet, weightKg, strengthMin) + (finisherMin ? kcalFor(6.5, weightKg, finisherMin) : 0);
+  const baseHiitKcal = kcalFor(hiMet, weightKg, hiitMin);
+  const recoveryKcal = kcalFor(2.8, weightKg, recoveryMin);
 
   const daysSchedule = [
     { day: 'Monday', activeIndex: 0 },
@@ -137,61 +197,65 @@ function generateWeeklyRoutine(
   const strengthUpper = {
     sessionTitle: 'Upper Body Hypertrophy & Core',
     workoutType: 'Functional Strength Training',
-    targetDurationMin: 50,
+    targetDurationMin: strengthMinTotal,
     targetHeartRateZone: 'Zone 3 (125 - 145 bpm) / RPE 7-8',
-    volume: '4 sets × 10-12 reps per movement',
+    volume: `${4 + extraSets} sets × 10-12 reps per movement${finisherNote}`,
     estCaloriesBurned: baseStrengthKcal,
     equipment: 'Dumbbells, Pull-up bar / Cable machine, Bench',
-    exercises: [
-      { name: 'Dumbbell Incline Bench Press', sets: '4', repsOrDuration: '10-12 reps', notes: 'Controlled tempo 3s eccentric' },
-      { name: 'Chest-Supported Row', sets: '4', repsOrDuration: '10-12 reps', notes: 'Squeeze shoulder blades at top' },
+    exercises: withFinisher([
+      { name: 'Dumbbell Incline Bench Press', sets: addSet('4', extraSets), repsOrDuration: '10-12 reps', notes: 'Controlled tempo 3s eccentric' },
+      { name: 'Chest-Supported Row', sets: addSet('4', extraSets), repsOrDuration: '10-12 reps', notes: 'Squeeze shoulder blades at top' },
       { name: 'Overhead Dumbbell Press', sets: '3', repsOrDuration: '10 reps', notes: 'Brace core, maintain neutral spine' },
       { name: 'Lat Pulldowns or Pull-ups', sets: '3', repsOrDuration: '10-12 reps', notes: 'Full lat stretch at peak' },
       { name: 'Hanging Knee Raises / Planks', sets: '3', repsOrDuration: '45-60s hold', notes: 'Posterior pelvic tilt' },
-    ],
-    coachingTips: 'Keep rest intervals strictly between 60-90s to maximize metabolic caloric output while preserving muscle.',
+    ]),
+    coachingTips: strengthTip,
   };
 
   const strengthLower = {
     sessionTitle: 'Lower Body Strength & Posterior Chain',
     workoutType: 'Functional Strength Training',
-    targetDurationMin: 50,
+    targetDurationMin: strengthMinTotal,
     targetHeartRateZone: 'Zone 3 (130 - 150 bpm) / RPE 7-8',
-    volume: '4 sets × 8-12 reps per exercise',
-    estCaloriesBurned: baseStrengthKcal + 50,
+    volume: `${4 + extraSets} sets × 8-12 reps per exercise${finisherNote}`,
+    estCaloriesBurned: Math.round(baseStrengthKcal * 1.1),
     equipment: 'Barbell/Dumbbells, Leg Press / Squat Rack',
-    exercises: [
-      { name: 'Goblet Squats or Barbell Back Squat', sets: '4', repsOrDuration: '8-10 reps', notes: 'Drive through mid-foot with depth' },
-      { name: 'Romanian Deadlifts (RDL)', sets: '4', repsOrDuration: '10-12 reps', notes: 'Hinge hips back, feel hamstring stretch' },
+    exercises: withFinisher([
+      { name: 'Goblet Squats or Barbell Back Squat', sets: addSet('4', extraSets), repsOrDuration: '8-10 reps', notes: 'Drive through mid-foot with depth' },
+      { name: 'Romanian Deadlifts (RDL)', sets: addSet('4', extraSets), repsOrDuration: '10-12 reps', notes: 'Hinge hips back, feel hamstring stretch' },
       { name: 'Walking Dumbbell Lunges', sets: '3', repsOrDuration: '12 steps/leg', notes: 'Chest upright, knee tracking toes' },
       { name: 'Standing Calf Raises', sets: '3', repsOrDuration: '15 reps', notes: '2 second pause at top' },
       { name: 'Cable Woodchoppers', sets: '3', repsOrDuration: '15 reps/side', notes: 'Rotational core power' },
-    ],
+    ]),
     coachingTips: 'Compound lower-body movements recruit the largest muscle groups, generating high EPOC (afterburn effect).',
   };
 
   const zone2Cardio = {
-    sessionTitle: 'Zone 2 Aerobic Fat Oxidation & Incline Walk',
+    sessionTitle: cardioTitle,
     workoutType: 'Brisk Walking / Incline Treadmill',
-    targetDurationMin: 45,
-    targetHeartRateZone: 'Zone 2 (115 - 130 bpm) / Conversational Pace',
-    volume: '4.5 - 5.5 km / Incline 4-8%',
+    targetDurationMin: cardioMin,
+    targetHeartRateZone: cardioZone,
+    volume: `~${cardioKm} km / Incline 4-8%`,
     estCaloriesBurned: baseCardioKcal,
     equipment: 'Outdoor GPS Walking Route or Treadmill',
     exercises: [
       { name: '5-minute Dynamic Mobility Warm-up', sets: '1', repsOrDuration: '5 mins', notes: 'Hip openers, leg swings' },
-      { name: 'Steady-State Incline Walk / Outdoor Power Walk', sets: '1', repsOrDuration: '35 mins', notes: 'Keep heart rate in Zone 2 fat-burning threshold' },
+      { name: 'Steady-State Incline Walk / Outdoor Power Walk', sets: '1', repsOrDuration: `${cardioMin - 10} mins`, notes: isLoss && tier === 3 ? 'Add 4 x 3 min Zone 4 efforts with 3 min easy between' : isLoss && tier === 2 ? 'Hold the upper end of Zone 2 into Zone 3' : 'Keep heart rate in Zone 2 fat-burning threshold' },
       { name: 'Cooldown & Hamstring / Calf Stretches', sets: '1', repsOrDuration: '5 mins', notes: 'Deep nasal breathing' },
     ],
-    coachingTips: 'Zone 2 maximizes mitochondria density and utilizes fatty acids as the primary fuel source without fatiguing central nervous system.',
+    coachingTips: isGain
+      ? 'Keep cardio short and easy in a surplus so calories go to muscle gain; it still supports recovery and heart health.'
+      : tier >= 2 && isLoss
+        ? 'Higher intensity raises daily burn for this faster pace; fuel with protein and carbs and cut a session short if form or sleep suffers.'
+        : 'Zone 2 maximizes mitochondria density and utilizes fatty acids as the primary fuel source without fatiguing central nervous system.',
   };
 
   const hiitConditioning = {
     sessionTitle: 'High Intensity Interval Training (HIIT) Circuit',
     workoutType: 'High Intensity Interval Training',
-    targetDurationMin: 35,
+    targetDurationMin: hiitMin,
     targetHeartRateZone: 'Zone 4-5 (155 - 175 bpm) / RPE 8.5-9',
-    volume: '5 rounds: 45s work / 45s rest',
+    volume: `${Math.max(3, Math.round(hiitMin / 7))} rounds: 45s work / 45s rest`,
     estCaloriesBurned: baseHiitKcal,
     equipment: 'Kettlebells, Bodyweight, Battle ropes or Assault bike',
     exercises: [
@@ -207,10 +271,10 @@ function generateWeeklyRoutine(
   const activeRecovery = {
     sessionTitle: 'Active Recovery & Functional Mobility',
     workoutType: 'Light Walking & Foam Rolling',
-    targetDurationMin: 30,
+    targetDurationMin: recoveryMin,
     targetHeartRateZone: 'Zone 1 (< 110 bpm)',
     volume: '2 - 3 km easy scenic walk',
-    estCaloriesBurned: 180,
+    estCaloriesBurned: recoveryKcal,
     equipment: 'Foam roller, Yoga mat',
     exercises: [
       { name: 'Gentle Outdoor Walk', sets: '1', repsOrDuration: '20 mins', notes: 'Promotes blood circulation to sore muscles' },
@@ -235,7 +299,7 @@ function generateWeeklyRoutine(
   };
 
   // Build the 7-day schedule according to chosen frequency and focus
-  return daysSchedule.map(({ day, activeIndex }) => {
+  const week = daysSchedule.map(({ day, activeIndex }) => {
     let session;
     let isRest = false;
 
@@ -300,4 +364,15 @@ function generateWeeklyRoutine(
       coachingTips: session.coachingTips,
     };
   });
+
+  // Loss goals: calibrate session calories so the week tracks the exercise share of the deficit
+  const weeklyTarget = isLoss ? exerciseDeficitKcal * 7 : 0;
+  const weeklySum = week.reduce((a, d) => a + d.estCaloriesBurned, 0);
+  if (weeklyTarget > 0 && weeklySum > 0) {
+    const factor = Math.max(0.75, Math.min(1.4, weeklyTarget / weeklySum));
+    week.forEach((d) => {
+      if (!d.isRest) d.estCaloriesBurned = Math.max(120, Math.min(900, Math.round(d.estCaloriesBurned * factor)));
+    });
+  }
+  return week;
 }
