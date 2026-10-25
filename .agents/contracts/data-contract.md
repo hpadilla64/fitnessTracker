@@ -67,6 +67,8 @@ The Next.js route handlers (`src/app/api/**`) serve the same domain shapes from 
 | `GET /api/health/routes/[filename]` | filename = `routes` key | `GpxRoute`, or `404 NOT_FOUND` |
 | `GET /api/preferences` | none | `UserPreferences` (defaults if never saved: `1y`, `metrics`, `metric`, nulls, `[]`, `""`) |
 | `PUT /api/preferences` | `PreferencesUpdate` (partial; unknown keys → 400) | the merged `UserPreferences` |
+| `GET /api/goals` | none | the active `Goal`, or `null` (200) if none was saved |
+| `PUT /api/goals` | `GoalUpdate`: all fields required; weights 30–300 kg, timeframe 2–52 weeks, integers not required; unknown keys → 400 | the active `Goal`. If the values equal the active goal, it's returned unchanged (no new row); otherwise the previous goal is archived (`active=false`) and a new one is created |
 
 The JSON files above remain the **import format**: `npm run db:import-json` loads them into SQLite until `POST /api/process-data` (phase 2) replaces it.
 
@@ -74,6 +76,7 @@ The JSON files above remain the **import format**: `npm run db:import-json` load
 
 Newest first. One line per change: date · file.field · change · breaking yes/no.
 
+- 2026-10-25 · API · `GET/PUT /api/goals` added (planner form persistence) · no
 - 2026-10-25 · API · phase-1 endpoints (status, health, workouts, routes, preferences) defined; data now served from SQLite · no
 - 2026-10-25 · profile.sex/dob/bloodType/currentWeight/currentBMI/currentLeanMass · now nullable; parser no longer hardcodes defaults · no (consumers handle null)
 - 2026-10-24 · all · contract documented from existing output · no

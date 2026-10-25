@@ -58,3 +58,17 @@ export interface UserPreferences {
 }
 
 export type PreferencesUpdate = Partial<UserPreferences>;
+
+export interface Goal {
+  id: number;
+  createdAt: string; // ISO timestamp
+  startWeightKg: number;
+  targetWeightKg: number;
+  timeframeWeeks: number;
+}
+
+export interface GoalUpdate {
+  startWeightKg: number;
+  targetWeightKg: number;
+  timeframeWeeks: number;
+}

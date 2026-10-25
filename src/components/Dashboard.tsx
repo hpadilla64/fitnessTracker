@@ -30,7 +30,7 @@ import {
   TimeRangeKey,
 } from '@/services/dataService';
 import { UserProfile } from '@/types';
-import type { StatusResponse, WorkoutSummary, TabKey, PreferencesUpdate } from '@/types/api';
+import type { StatusResponse, WorkoutSummary, TabKey, PreferencesUpdate, UserPreferences } from '@/types/api';
 import { HealthMetricsTab } from './tabs/HealthMetricsTab';
 import { WeightGoalPlannerTab } from './tabs/WeightGoalPlannerTab';
 import { WorkoutsRoutesTab } from './tabs/WorkoutsRoutesTab';
@@ -63,6 +63,7 @@ export const Dashboard: React.FC = () => {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -73,6 +74,7 @@ export const Dashboard: React.FC = () => {
           const [prof, wk, prefs] = await Promise.all([fetchProfile(), fetchWorkouts(), fetchPreferences()]);
           setProfile(prof);
           setWorkouts(wk);
+          setPreferences(prefs);
           setActiveTab(prefs.activeTab);
           setTimeRange(prefs.timeRange);
         }
@@ -114,7 +116,7 @@ export const Dashboard: React.FC = () => {
           <span>Weight Goals & Routine Recommendation</span>
         </Space>
       ),
-      children: profile ? <WeightGoalPlannerTab profile={profile} /> : null,
+      children: profile ? <WeightGoalPlannerTab profile={profile} preferences={preferences} onSavePreference={savePreference} /> : null,
     },
     {
       key: 'workouts',

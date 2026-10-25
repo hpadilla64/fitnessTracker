@@ -6,6 +6,8 @@ import type {
   WorkoutSummary,
   UserPreferences,
   PreferencesUpdate,
+  Goal,
+  GoalUpdate,
   TimeRangeKey,
 } from '../types/api';
 
@@ -36,6 +38,14 @@ export const fetchRoute = (filename: string) =>
 export const fetchPreferences = () => request<UserPreferences>('/api/preferences');
 export const updatePreferences = (update: PreferencesUpdate) =>
   request<UserPreferences>('/api/preferences', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  });
+
+export const fetchGoal = () => request<Goal | null>('/api/goals');
+export const saveGoal = (update: GoalUpdate) =>
+  request<Goal>('/api/goals', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(update),
