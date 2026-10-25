@@ -1,0 +1,93 @@
+@import 'antd/dist/reset.css';
+
+:root {
+  --bg-primary: #0c101c;
+  --bg-card: #151a28;
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-primary);
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom modern dark scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1422;
+}
+::-webkit-scrollbar-thumb {
+  background: #232b3e;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #313d56;
+}
+
+/* Ant Design Table adjustments */
+.ant-table {
+  background: transparent !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #111624 !important;
+  color: #8c9ba5 !important;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: rgba(24, 144, 255, 0.06) !important;
+}
+
+.ant-table-row-selected > td {
+  background: rgba(24, 144, 255, 0.12) !important;
+}
+
+/* Leaflet Map overrides for Dark Mode */
+.leaflet-container {
+  background: #1b2234 !important;
+  border-radius: 8px;
+}
+
+/* Print Styles for Recommended Routine Export */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .ant-layout-header,
+  .ant-layout-footer,
+  .ant-tabs-nav,
+  button {
+    display: none !important;
+  }
+  .ant-card {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+  }
+  .ant-table-thead > tr > th {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+  }
+}

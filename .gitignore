@@ -1,0 +1,24 @@
+# Dependencies & build output
+node_modules/
+dist/
+
+# Personal health data — never commit (see AGENTS.md › Boundaries)
+input/
+public/data/
+
+# Agent run logs (disposable working files)
+.agents/runs/*
+!.agents/runs/.gitkeep
+
+# Local tool settings
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc

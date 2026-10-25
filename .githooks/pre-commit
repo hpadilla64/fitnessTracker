@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks commits containing personal health data (see scripts/check_personal_data.py)
+exec python3 scripts/check_personal_data.py --staged
