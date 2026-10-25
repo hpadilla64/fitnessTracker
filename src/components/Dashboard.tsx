@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import {
   ConfigProvider,
@@ -8,6 +10,7 @@ import {
   Tag,
   Spin,
   Alert,
+  Result,
   theme,
 } from 'antd';
 import {
@@ -18,12 +21,19 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchHealthData } from './services/dataService';
-import { UserProfile, DailyMetric, Workout, GpxRoute } from './types';
-import { HealthMetricsTab } from './components/tabs/HealthMetricsTab';
-import { WeightGoalPlannerTab } from './components/tabs/WeightGoalPlannerTab';
-import { WorkoutsRoutesTab } from './components/tabs/WorkoutsRoutesTab';
-import './index.css';
+import {
+  fetchStatus,
+  fetchProfile,
+  fetchWorkouts,
+  fetchPreferences,
+  updatePreferences,
+  TimeRangeKey,
+} from '@/services/dataService';
+import { UserProfile } from '@/types';
+import type { StatusResponse, WorkoutSummary, TabKey, PreferencesUpdate } from '@/types/api';
+import { HealthMetricsTab } from './tabs/HealthMetricsTab';
+import { WeightGoalPlannerTab } from './tabs/WeightGoalPlannerTab';
+import { WorkoutsRoutesTab } from './tabs/WorkoutsRoutesTab';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -39,31 +49,51 @@ function ageFromDob(dob: string | null): number | null {
   return age;
 }
 
-export const App: React.FC = () => {
+// Fire-and-forget preference save
+function savePreference(update: PreferencesUpdate) {
+  updatePreferences(update).catch((err) => console.error('Failed to save preferences:', err));
+}
+
+export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('metrics');
+  const [activeTab, setActiveTab] = useState<TabKey>('metrics');
+  const [timeRange, setTimeRange] = useState<TimeRangeKey>('1y');
 
+  const [status, setStatus] = useState<StatusResponse | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [daily, setDaily] = useState<DailyMetric[]>([]);
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [routes, setRoutes] = useState<Record<string, GpxRoute>>({});
+  const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
 
   useEffect(() => {
-    fetchHealthData()
-      .then((data) => {
-        setProfile(data.profile);
-        setDaily(data.daily);
-        setWorkouts(data.workouts);
-        setRoutes(data.routes);
-        setLoading(false);
-      })
-      .catch((err) => {
+    (async () => {
+      try {
+        const st = await fetchStatus();
+        setStatus(st);
+        if (st.hasData) {
+          const [prof, wk, prefs] = await Promise.all([fetchProfile(), fetchWorkouts(), fetchPreferences()]);
+          setProfile(prof);
+          setWorkouts(wk);
+          setActiveTab(prefs.activeTab);
+          setTimeRange(prefs.timeRange);
+        }
+      } catch (err) {
         console.error('Failed to load health data:', err);
-        setError('Failed to load health data files from /data. Ensure data extraction has been run.');
+        setError('Failed to load health data from the API. Ensure the data has been imported.');
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   }, []);
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key as TabKey);
+    savePreference({ activeTab: key as TabKey });
+  };
+
+  const handleTimeRangeChange = (range: TimeRangeKey) => {
+    setTimeRange(range);
+    savePreference({ timeRange: range });
+  };
 
   const tabItems = [
     {
@@ -74,7 +104,7 @@ export const App: React.FC = () => {
           <span>Health & Activity Metrics</span>
         </Space>
       ),
-      children: profile ? <HealthMetricsTab profile={profile} dailyMetrics={daily} /> : null,
+      children: profile ? <HealthMetricsTab profile={profile} timeRange={timeRange} onTimeRangeChange={handleTimeRangeChange} /> : null,
     },
     {
       key: 'planner',
@@ -94,7 +124,7 @@ export const App: React.FC = () => {
           <span>Workouts & GPX Routes</span>
         </Space>
       ),
-      children: <WorkoutsRoutesTab workouts={workouts} routes={routes} />,
+      children: <WorkoutsRoutesTab workouts={workouts} />,
     },
   ];
 
@@ -200,7 +230,18 @@ export const App: React.FC = () => {
               <Text style={{ color: '#8c9ba5' }}>Loading 10-year Apple Health dataset & GPS routes...</Text>
             </div>
           ) : error ? (
-            <Alert message="Error Loading Health Data" description={error} type="error" showIcon />
+            <Alert title="Error Loading Health Data" description={error} type="error" showIcon />
+          ) : status && !status.hasData ? (
+            <Result
+              status="info"
+              title="No health data imported yet"
+              subTitle={
+                <>
+                  Import your Apple Health data by running <Text code>npm run db:import-json</Text> in the project
+                  folder, then reload this page.
+                </>
+              }
+            />
           ) : (
             <AnimatePresence mode="wait">
               <motion.div
@@ -212,7 +253,7 @@ export const App: React.FC = () => {
               >
                 <Tabs
                   activeKey={activeTab}
-                  onChange={(k) => setActiveTab(k)}
+                  onChange={handleTabChange}
                   items={tabItems}
                   size="large"
                   tabBarStyle={{
@@ -236,13 +277,11 @@ export const App: React.FC = () => {
             padding: '20px 24px',
           }}
         >
-          PulseFit Intelligence Dashboard &copy; {new Date().getFullYear()} &bull; {daily.length.toLocaleString()} days of
-          Apple Health data &bull; {workouts.length.toLocaleString()} Workouts &bull;{' '}
-          {Object.keys(routes).length.toLocaleString()} GPX Routes
+          PulseFit Intelligence Dashboard &copy; {new Date().getFullYear()} &bull; {(status?.counts.days ?? 0).toLocaleString()} days of
+          Apple Health data &bull; {(status?.counts.workouts ?? 0).toLocaleString()} Workouts &bull;{' '}
+          {(status?.counts.routes ?? 0).toLocaleString()} GPX Routes
         </Footer>
       </Layout>
     </ConfigProvider>
   );
 };
-
-export default App;

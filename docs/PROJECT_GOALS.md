@@ -12,7 +12,7 @@ Read the user's Apple Health export (copied into `input/`) and show it in a dash
 
 - **Runs locally.** Frontend and backend run on the user's machine. No hosting, no accounts.
 - **Single user**: the owner of the health export.
-- **Health data stays local.** Nothing from `input/` or `public/data/` leaves the machine, except the minimum an approved web or AI call needs. The user must approve what is sent (see `AGENTS.md` › Boundaries).
+- **Health data stays local.** Nothing from `input/`, `public/data/` or `data/` leaves the machine, except the minimum an approved web or AI call needs. The user must approve what is sent (see `AGENTS.md` › Boundaries).
 
 ## Features
 
@@ -45,7 +45,7 @@ The backend is not a single program. The **backend role owns all of these proces
 | Process | Purpose | Status |
 |---|---|---|
 | Health data ingestion | Stream-parse `input/` → `public/data/*.json` (`scripts/parse_health_data.py`) | exists |
-| Local API server | Serve health data, goals, progress and recommendations to the frontend | planned |
+| Local API server | Serve health data, goals, progress and recommendations to the frontend (Next.js route handlers over SQLite) | read API + preferences done |
 | Workout catalog fetcher | Fetch workout plans and exercises from a web source; store them locally | planned (source TBD) |
 | AI recommender | Combine health data, the goal, days per week and the catalog into a suggested routine | planned (provider TBD) |
 
@@ -64,26 +64,32 @@ flowchart LR
   API --> FE[Frontend dashboard]
 ```
 
-The frontend⇄backend interface is defined in `.agents/contracts/data-contract.md`: today the JSON files, and the API once it exists.
+The frontend⇄backend interface is the HTTP API defined in `.agents/contracts/data-contract.md`.
 
 ## Roadmap
 
 Do these in order. Each step should leave the app working.
 
-1. **Local API server.** Serve the existing data, and add the API section to the data contract.
-2. **Move recommendations behind the API.** Port the current engine to the backend, and keep the client engine as an offline fallback until the API path is verified.
+1. ~~**Local API server + DB.**~~ Done: Next.js app, SQLite, read API, preferences.
+2. **process-data.** Port the parser to TypeScript (`POST /api/process-data` as a background job), with a parity check against the Python output before the Python script is removed.
 3. **Goal persistence and progress tracking.** Store the goal, and chart actual weigh-ins against it in tab 2.
-4. **Workout catalog fetcher.** Needs the web source decided (see open decisions).
-5. **AI recommender.** Needs the provider and the data-sharing scope decided. Use the catalog as its source of exercises.
+4. **Workout catalog fetcher** (wger.de).
+5. **AI recommendations** (Claude), with the current rule engine moved server-side as the fallback.
 
 Fixing the route linkage (tab 3) is independent and can be done at any time.
+
+## Decisions
+
+Decided with the user on 2026-10-25:
+- **Framework:** one Next.js app (App Router) serving the UI and `/api/*`, bound to 127.0.0.1. Node 24 LTS.
+- **Storage:** SQLite (`data/pulsefit.db`) via better-sqlite3 + Drizzle ORM, for health data, preferences/needs, goals, catalog, recommendations and job runs.
+- **Parser:** ported to TypeScript (streaming SAX).
+- **Workout source:** the wger.de open API (exercises, CC-BY-SA; show attribution).
+- **AI:** Anthropic Claude with structured output, grounded on the cached catalog.
+- **AI data scope:** only an allowlisted summary (sex, age, weight, BMI, resting HR, VO2 max, 30-day averages, workout-type counts, and the needs the user entered). Never DOB, dates, GPS or raw records.
 
 ## Open decisions
 
 The orchestrator asks the user about these. It doesn't decide them.
 
-- **Workout web source:** which site or API to fetch plans and exercises from, and whether its terms allow it.
-- **AI provider and model**, and exactly which health fields may be sent to it (aggregates only vs raw).
-- **Backend language and framework.** Default: Python, to match the parser.
-- **Storage** for goals, the catalog and recommendation history (e.g. JSON files vs SQLite).
-- **API style** (e.g. REST/JSON) and how the frontend dev server reaches it (Vite proxy).
+- **Route linkage:** how to match GPX files to workouts (e.g. by start timestamp), since `routePath` is empty in the export.

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Row,
   Col,
@@ -24,19 +24,20 @@ import {
   RiseOutlined,
 } from '@ant-design/icons';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet';
-import { Workout, GpxRoute } from '../../types';
+import { GpxRoute } from '@/types';
+import type { WorkoutSummary } from '@/types/api';
+import { fetchRoute } from '@/services/dataService';
 
 const { Title, Text } = Typography;
 
 interface WorkoutsRoutesTabProps {
-  workouts: Workout[];
-  routes: Record<string, GpxRoute>;
+  workouts: WorkoutSummary[];
 }
 
-export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, routes }) => {
-  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(() => {
+export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts }) => {
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSummary | null>(() => {
     // Default to the first workout that has route data
-    const withRoute = workouts.find((w) => w.routeData || (w.routePath && routes[w.routePath.split('/').pop() || '']));
+    const withRoute = workouts.find((w) => w.hasRoute);
     return withRoute || workouts[0] || null;
   });
 
@@ -62,19 +63,36 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
     return Array.from(types);
   }, [workouts]);
 
-  // Selected route data
-  const currentRouteData = useMemo(() => {
-    if (!selectedWorkout) return null;
-    if (selectedWorkout.routeData) return selectedWorkout.routeData;
-    if (selectedWorkout.routePath) {
-      const filename = selectedWorkout.routePath.split('/').pop() || '';
-      return routes[filename] || null;
-    }
-    return null;
-  }, [selectedWorkout, routes]);
+  // Routes are fetched on demand and cached by filename
+  const [routes, setRoutes] = useState<Record<string, GpxRoute>>({});
+  const [routeLoading, setRouteLoading] = useState(false);
+
+  const routeFilename =
+    selectedWorkout?.hasRoute && selectedWorkout.routePath
+      ? selectedWorkout.routePath.split('/').pop() || null
+      : null;
+
+  useEffect(() => {
+    if (!routeFilename || routes[routeFilename]) return;
+    let cancelled = false;
+    setRouteLoading(true);
+    fetchRoute(routeFilename)
+      .then((route) => {
+        if (!cancelled) setRoutes((prev) => ({ ...prev, [routeFilename]: route }));
+      })
+      .catch((err) => console.error('Failed to load route:', err))
+      .finally(() => {
+        if (!cancelled) setRouteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [routeFilename, routes]);
+
+  const currentRouteData = routeFilename ? routes[routeFilename] || null : null;
 
   // Table columns for workouts
-  const columns: ColumnsType<Workout> = [
+  const columns: ColumnsType<WorkoutSummary> = [
     {
       title: 'Activity Type',
       dataIndex: 'type',
@@ -140,8 +158,8 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
       key: 'route',
       width: 110,
       align: 'center',
-      render: (_, record: Workout) => {
-        const hasRoute = record.routeData || (record.routePath && routes[record.routePath.split('/').pop() || '']);
+      render: (_, record: WorkoutSummary) => {
+        const hasRoute = record.hasRoute;
         return hasRoute ? (
           <Badge status="processing" text={<span style={{ color: '#52c41a', fontSize: 12 }}>GPS Track</span>} />
         ) : (
@@ -154,7 +172,7 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
       key: 'action',
       width: 90,
       align: 'center',
-      render: (_, record: Workout) => (
+      render: (_, record: WorkoutSummary) => (
         <Button
           size="small"
           type={selectedWorkout?.id === record.id ? 'primary' : 'default'}
@@ -204,7 +222,7 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
                 <span>Recorded Workouts ({filteredWorkouts.length})</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
             extra={
               <Space wrap>
@@ -231,7 +249,7 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
               </Space>
             }
           >
-            <Table<Workout>
+            <Table<WorkoutSummary>
               columns={columns}
               dataSource={filteredWorkouts}
               rowKey="id"
@@ -259,7 +277,7 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
                 </span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28' }}
           >
             {selectedWorkout ? (
@@ -272,7 +290,7 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
                         title={<span style={{ fontSize: 11, color: '#8c9ba5' }}>Duration</span>}
                         value={selectedWorkout.durationMinutes}
                         suffix="min"
-                        valueStyle={{ color: '#fff', fontSize: 18, fontWeight: 700 }}
+                        styles={{ content: { color: '#fff', fontSize: 18, fontWeight: 700 } }}
                       />
                     </Card>
                   </Col>
@@ -282,7 +300,7 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
                         title={<span style={{ fontSize: 11, color: '#8c9ba5' }}>Distance</span>}
                         value={selectedWorkout.distanceKm || (currentRouteData ? currentRouteData.distanceKm : 0)}
                         suffix="km"
-                        valueStyle={{ color: '#52c41a', fontSize: 18, fontWeight: 700 }}
+                        styles={{ content: { color: '#52c41a', fontSize: 18, fontWeight: 700 } }}
                       />
                     </Card>
                   </Col>
@@ -292,7 +310,7 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
                         title={<span style={{ fontSize: 11, color: '#8c9ba5' }}>Active Energy</span>}
                         value={selectedWorkout.energyKcal}
                         suffix="kcal"
-                        valueStyle={{ color: '#fa8c16', fontSize: 18, fontWeight: 700 }}
+                        styles={{ content: { color: '#fa8c16', fontSize: 18, fontWeight: 700 } }}
                       />
                     </Card>
                   </Col>
@@ -375,7 +393,9 @@ export const WorkoutsRoutesTab: React.FC<WorkoutsRoutesTabProps> = ({ workouts, 
                   >
                     <EnvironmentOutlined style={{ fontSize: 40, color: '#8c9ba5', marginBottom: 12 }} />
                     <Text style={{ color: '#8c9ba5' }}>
-                      No GPS route recorded for this workout (indoor training session).
+                      {routeLoading
+                        ? 'Loading GPS route...'
+                        : 'No GPS route recorded for this workout (indoor training session).'}
                     </Text>
                   </div>
                 )}

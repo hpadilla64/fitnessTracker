@@ -1,10 +1,20 @@
 # Dependencies & build output
 node_modules/
 dist/
+.next/
+next-env.d.ts
+*.tsbuildinfo
 
 # Personal health data — never commit (see AGENTS.md › Boundaries)
 input/
 public/data/
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets
+.env*.local
 
 # Agent run logs (disposable working files)
 .agents/runs/*

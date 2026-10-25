@@ -1,6 +1,6 @@
 # PulseFit Intelligence — Health & Fitness Tracker Dashboard
 
-A high-performance health metrics analytics dashboard and adaptive exercise routine recommender built with **React**, **TypeScript**, **Ant Design**, **Ant Design Charts (`@ant-design/plots`)**, **Framer Motion**, and **Leaflet**.
+A high-performance health metrics analytics dashboard and adaptive exercise routine recommender built with **Next.js** (App Router + API routes), **React**, **TypeScript**, **SQLite** (Drizzle ORM), **Ant Design**, **Ant Design Charts (`@ant-design/plots`)**, **Framer Motion**, and **Leaflet**. Runs entirely on your machine.
 
 Powered by your own Apple Health export (records, workouts and GPX routes), processed and served locally. Personal data never leaves your machine and is never committed.
 
@@ -42,31 +42,34 @@ Powered by your own Apple Health export (records, workouts and GPX routes), proc
 ## Getting Started
 
 ### Prerequisites
-- Node.js v18+ (tested on Node v20.19)
-- npm v9+
+- Node.js 24 LTS (`nvm use` reads `.nvmrc`)
+- npm v10+
+- Python 3 (for the legacy parser, until the TypeScript port lands)
 
 ### Quick Start
 ```bash
 # 1. Install dependencies (also enables the personal-data pre-commit hook)
 npm install
 
-# 2. Unzip your Apple Health export into input/apple_health_export/, then generate public/data/
-#    (required on first run and whenever the export changes; neither folder is committed)
+# 2. Unzip your Apple Health export into input/apple_health_export/, parse it,
+#    and load the result into the local SQLite database (data/pulsefit.db).
+#    Required on first run and whenever the export changes; input/ and data/ are never committed.
 npm run parse-data
+npm run db:import-json
 
-# 3. Start development server
+# 3. Start the app (dashboard + API, bound to 127.0.0.1)
 npm run dev
 ```
 
-Visit `http://localhost:3000` (or the port indicated in your terminal).
+Visit `http://127.0.0.1:3000`.
 
 ### Production Build & Preview
 ```bash
 # Build production bundle
 npm run build
 
-# Preview production build locally
-npm run preview
+# Serve the production build locally (127.0.0.1:3000)
+npm run start
 ```
 
 ---
@@ -75,35 +78,23 @@ npm run preview
 
 ```
 fitnessTracker/
-├── input/
-│   └── apple_health_export/
-│       ├── export.xml               # Apple Health export
-│       ├── export_cda.xml           # CDA vitals document
-│       └── workout-routes/          # GPX GPS route tracks
+├── input/apple_health_export/       # your Apple Health export (git-ignored)
+├── data/pulsefit.db                 # local SQLite database (git-ignored)
+├── public/data/                     # legacy parser output / import format (git-ignored)
 ├── scripts/
-│   └── parse_health_data.py         # Memory-efficient streaming data extractor
-├── public/
-│   └── data/
-│       ├── profile.json             # Demographics, averages, and totals
-│       ├── daily_metrics.json       # Daily aggregated time series
-│       ├── workouts.json            # Workout records
-│       └── routes.json              # Downsampled GPS coordinates
+│   ├── parse_health_data.py         # legacy streaming parser (until the TS port lands)
+│   ├── import-json.ts               # loads public/data/*.json into SQLite
+│   └── check_personal_data.py       # pre-commit guard against hardcoded personal values
 ├── src/
-│   ├── components/
-│   │   ├── MetricCard.tsx           # Framer Motion animated KPI card
-│   │   └── tabs/
-│   │       ├── HealthMetricsTab.tsx     # Tab 1: Charts & Vitals
-│   │       ├── WeightGoalPlannerTab.tsx # Tab 2: Goal Form & Routine Table
-│   │       └── WorkoutsRoutesTab.tsx    # Tab 3: Workouts & Leaflet GPS Map
-│   ├── services/
-│   │   ├── dataService.ts           # Data loader, downsampling & filter utils
-│   │   └── recommendationEngine.ts  # Science-based deficit & routine generator
-│   ├── types/
-│   │   └── index.ts                 # Full TypeScript definitions
-│   ├── App.tsx                      # App layout, header, and tab navigation
-│   ├── main.tsx                     # React entrypoint
-│   └── index.css                    # Dark theme styles & print rules
-├── package.json
-├── tsconfig.json
-└── vite.config.ts
+│   ├── app/
+│   │   ├── layout.tsx, page.tsx     # Next.js shell (dashboard is a client-only component)
+│   │   └── api/                     # route handlers: status, health/*, workouts, preferences
+│   ├── components/                  # Dashboard + tabs (metrics, goal planner, workouts/routes)
+│   ├── server/                      # server-only: db (Drizzle schema, migrations, repos), aggregation
+│   ├── services/                    # typed API client + (for now) client-side recommendation engine
+│   └── types/                       # domain types (index.ts) and API types (api.ts)
+├── docs/                            # PROJECT_GOALS.md (roadmap), v1 spec and plan
+├── .agents/                         # orchestrator, roles, data contract (see AGENTS.md)
+├── drizzle.config.ts, next.config.ts, tsconfig.json
+└── package.json
 ```

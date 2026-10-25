@@ -54,13 +54,26 @@ Key = GPX filename (e.g. `route_2024-01-31_7.15am.gpx`).
 | startPoint, endPoint | `{ lat, lon, ele }` | degrees, degrees, metres |
 | points | `{ lat, lon, ele }[]` | downsampled for rendering |
 
-## API (planned)
+## API
 
-There is no server yet. When the local API server is created (roadmap step 1 in `docs/PROJECT_GOALS.md`), specify each endpoint here: method, path, request and response shapes, and errors. The frontend codes against this section, as it does for the files above.
+The Next.js route handlers (`src/app/api/**`) serve the same domain shapes from SQLite (`data/pulsefit.db`). TypeScript types: `src/types/api.ts`. All responses are JSON. Errors are `{ error, code? }` with a 4xx/5xx status. When no data has been imported, data endpoints return `503 { code: "NO_DATA" }`.
+
+| Method & path | Request | Response |
+|---|---|---|
+| `GET /api/status` | none | `StatusResponse`; always 200, even with no data |
+| `GET /api/health/profile` | none | `UserProfile` |
+| `GET /api/health/daily` | `?range=30d\|90d\|1y\|3y\|all` (default `1y`), `?period=daily\|weekly\|monthly` (default: `daily` up to 1y, `weekly` for 3y, `monthly` for all) | `DailyResponse`. The range is measured back from the **last** date in the data, not today. `aggregated` averages sums per period, averages non-null vitals, and takes the latest weight/BMI |
+| `GET /api/workouts` | none | `WorkoutSummary[]`, newest first |
+| `GET /api/health/routes/[filename]` | filename = `routes` key | `GpxRoute`, or `404 NOT_FOUND` |
+| `GET /api/preferences` | none | `UserPreferences` (defaults if never saved: `1y`, `metrics`, `metric`, nulls, `[]`, `""`) |
+| `PUT /api/preferences` | `PreferencesUpdate` (partial; unknown keys → 400) | the merged `UserPreferences` |
+
+The JSON files above remain the **import format**: `npm run db:import-json` loads them into SQLite until `POST /api/process-data` (phase 2) replaces it.
 
 ## Changelog
 
 Newest first. One line per change: date · file.field · change · breaking yes/no.
 
+- 2026-10-25 · API · phase-1 endpoints (status, health, workouts, routes, preferences) defined; data now served from SQLite · no
 - 2026-10-25 · profile.sex/dob/bloodType/currentWeight/currentBMI/currentLeanMass · now nullable; parser no longer hardcodes defaults · no (consumers handle null)
 - 2026-10-24 · all · contract documented from existing output · no

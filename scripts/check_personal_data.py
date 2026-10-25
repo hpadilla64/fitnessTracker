@@ -3,7 +3,8 @@
 Block commits that contain personal health data.
 
 Builds a list of distinctive personal values from the local, git-ignored
-public/data/*.json (date of birth, weights, lifetime totals, GPS start points)
+data store (data/pulsefit.db, falling back to the public/data/*.json import
+files): date of birth, weights, lifetime totals, GPS start points
 and scans files for them, so real values never get hardcoded into tracked
 code or docs. Also rejects any staged path under input/ or public/data/.
 
@@ -15,12 +16,15 @@ Usage:
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT, "public", "data")
-BLOCKED_PATHS = ("input/", "public/data/")
+DB_PATH = os.path.join(ROOT, "data", "pulsefit.db")
+BLOCKED_PATHS = ("input/", "public/data/", "data/")
+BLOCKED_SUFFIXES = (".db", ".db-wal", ".db-shm", ".sqlite")
 SKIP_FILES = {"package-lock.json", "scripts/check_personal_data.py"}
 
 
@@ -44,9 +48,39 @@ def number_variants(value):
     return [str(n), f"{n:,}"]
 
 
+def load_from_db():
+    """(profile dict in the JSON field names, list of route start points) or (None, None)."""
+    if not os.path.exists(DB_PATH):
+        return None, None
+    try:
+        con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+        con.row_factory = sqlite3.Row
+        row = con.execute("SELECT * FROM profile LIMIT 1").fetchone()
+        starts = [{"lat": r["start_lat"], "lon": r["start_lon"]}
+                  for r in con.execute("SELECT start_lat, start_lon FROM routes")]
+        con.close()
+    except sqlite3.Error:
+        return None, None
+    if not row:
+        return None, None
+    camel = lambda k: re.sub(r"_([a-z0-9])", lambda m: m.group(1).upper(), k)
+    profile = {camel(k): row[k] for k in row.keys()}
+    profile["currentBMI"] = profile.pop("currentBmi", None)
+    profile["avgRestingHR30d"] = profile.pop("avgRestingHr30d", None)
+    profile["recentVO2Max"] = profile.pop("recentVo2Max", None)
+    try:
+        profile["workoutTypeCounts"] = json.loads(profile.get("workoutTypeCounts") or "{}")
+    except ValueError:
+        profile["workoutTypeCounts"] = {}
+    return profile, starts
+
+
 def build_patterns():
-    profile = load("profile.json")
-    routes = load("routes.json")
+    profile, starts = load_from_db()
+    if not profile:
+        profile = load("profile.json")
+        routes_json = load("routes.json") or {}
+        starts = [r.get("startPoint") or {} for r in routes_json.values()]
     if not profile:
         return []
 
@@ -71,8 +105,8 @@ def build_patterns():
     for count in (profile.get("workoutTypeCounts") or {}).values():
         if count >= 100:
             literals.update(number_variants(count))
-    if routes and len(routes) >= 100:
-        literals.update(number_variants(len(routes)))
+    if starts and len(starts) >= 100:
+        literals.update(number_variants(len(starts)))
 
     # Not part of a longer number: no adjacent word chars, decimals or thousands groups
     patterns = [(lit, re.compile(r"(?<![\w.])(?<!\d,)" + re.escape(lit) + r"(?!\w|\.\d|,\d)")) for lit in literals]
@@ -87,8 +121,7 @@ def build_patterns():
 
     # GPS start points to ~100 m: any coordinate beginning with these digits
     coords = set()
-    for r in (routes or {}).values():
-        sp = r.get("startPoint") or {}
+    for sp in starts or []:
         for axis in ("lat", "lon"):
             if isinstance(sp.get(axis), (int, float)):
                 coords.add(f"{sp[axis]:.3f}")
@@ -106,14 +139,15 @@ def main():
     files = git("diff", "--cached", "--name-only", "--diff-filter=ACMR") if staged else git("ls-files")
     files = [f for f in files.splitlines() if f]
 
-    problems = [f"{f}: personal data path must never be committed" for f in files if f.startswith(BLOCKED_PATHS)]
+    problems = [f"{f}: personal data path must never be committed" for f in files
+                if f.startswith(BLOCKED_PATHS) or f.endswith(BLOCKED_SUFFIXES)]
 
     patterns = build_patterns()
     if not patterns:
         print("check_personal_data: public/data/profile.json not found; value scan skipped", file=sys.stderr)
 
     for f in files:
-        if f in SKIP_FILES or f.startswith(BLOCKED_PATHS):
+        if f in SKIP_FILES or f.startswith(BLOCKED_PATHS) or f.endswith(BLOCKED_SUFFIXES):
             continue
         try:
             text = git("show", f":{f}") if staged else open(os.path.join(ROOT, f), encoding="utf-8").read()

@@ -32,8 +32,8 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import { Line } from '@ant-design/plots';
-import { UserProfile, WeightGoalConfig, RoutineExercise, TrainingFocus } from '../../types';
-import { evaluateWeightGoalAndRecommendRoutine, DEFAULT_WEIGHT_KG } from '../../services/recommendationEngine';
+import { UserProfile, WeightGoalConfig, RoutineExercise, TrainingFocus } from '@/types';
+import { evaluateWeightGoalAndRecommendRoutine, DEFAULT_WEIGHT_KG } from '@/services/recommendationEngine';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -112,7 +112,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
       key: 'day',
       width: 110,
       render: (day: string, record: RoutineExercise) => (
-        <Space direction="vertical" size={2}>
+        <Space orientation="vertical" size={2}>
           <Text strong style={{ color: record.isRest ? '#8c9ba5' : '#fff' }}>
             {day}
           </Text>
@@ -249,7 +249,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                 <span>Configure Your Target & Timeframe</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28', height: '100%' }}
           >
             <Form layout="vertical">
@@ -354,12 +354,12 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                 <span>Caloric Deficit & Feasibility Analysis</span>
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, background: '#151a28', height: '100%' }}
           >
             {/* Feasibility Alert */}
             <Alert
-              message={
+              title={
                 <Space>
                   {evaluation.status === 'safe' && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
                   {evaluation.status === 'moderate' && <InfoCircleOutlined style={{ color: '#faad14' }} />}
@@ -391,7 +391,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Required Daily Deficit</span>}
                     value={evaluation.dailyDeficitKcal}
                     suffix="kcal"
-                    valueStyle={{ color: '#fa8c16', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#fa8c16', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -401,7 +401,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Target Caloric Intake</span>}
                     value={evaluation.targetIntakeKcal}
                     suffix="kcal"
-                    valueStyle={{ color: '#52c41a', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#52c41a', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -411,7 +411,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Weekly Workout Burn</span>}
                     value={totalWeeklyBurn}
                     suffix="kcal"
-                    valueStyle={{ color: '#1890ff', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#1890ff', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -421,7 +421,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
                     title={<span style={{ fontSize: 12, color: '#8c9ba5' }}>Weekly Active Time</span>}
                     value={totalWeeklyMinutes}
                     suffix="min"
-                    valueStyle={{ color: '#722ed1', fontSize: 20, fontWeight: 700 }}
+                    styles={{ content: { color: '#722ed1', fontSize: 20, fontWeight: 700 } }}
                   />
                 </Card>
               </Col>
@@ -453,7 +453,7 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
             </Button>
           </div>
         }
-        bordered={false}
+        variant="borderless"
         style={{ borderRadius: 12, background: '#151a28' }}
       >
         <Paragraph style={{ color: '#8c9ba5' }}>
