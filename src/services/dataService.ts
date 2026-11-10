@@ -9,6 +9,7 @@ import type {
   Goal,
   GoalUpdate,
   GoalProgress,
+  IngestJob,
   TimeRangeKey,
 } from '../types/api';
 
@@ -53,3 +54,6 @@ export const saveGoal = (update: GoalUpdate) =>
   });
 
 export const fetchGoalProgress = () => request<GoalProgress | null>('/api/goals/progress');
+
+export const startProcessData = () => request<IngestJob>('/api/process-data', { method: 'POST' });
+export const fetchIngestJob = () => request<IngestJob | null>('/api/process-data');
