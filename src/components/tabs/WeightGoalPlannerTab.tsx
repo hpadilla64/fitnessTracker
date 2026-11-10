@@ -34,7 +34,9 @@ import {
 import { Line } from '@ant-design/plots';
 import { UserProfile, WeightGoalConfig, RoutineExercise, TrainingFocus } from '@/types';
 import { evaluateWeightGoalAndRecommendRoutine, DEFAULT_WEIGHT_KG } from '@/services/recommendationEngine';
-import { fetchGoal, saveGoal } from '@/services/dataService';
+import { fetchGoal, saveGoal, fetchGoalProgress } from '@/services/dataService';
+import GoalProgressCard from '@/components/GoalProgressCard';
+import type { GoalProgress } from '@/types/api';
 import type { UserPreferences, PreferencesUpdate } from '@/types/api';
 
 const { Title, Text, Paragraph } = Typography;
@@ -83,16 +85,26 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
     };
   }, []);
 
+  const [progress, setProgress] = useState<GoalProgress | null>(null);
+  const refreshProgress = useCallback(() => {
+    fetchGoalProgress()
+      .then(setProgress)
+      .catch((err) => console.error('Failed to load goal progress:', err));
+  }, []);
+  useEffect(() => {
+    refreshProgress();
+  }, [refreshProgress]);
+
   const scheduleGoalSave = useCallback(() => {
     touched.current = true;
     if (goalTimer.current) clearTimeout(goalTimer.current);
     goalTimer.current = setTimeout(() => {
       const { currentWeight: s, targetWeight: t, timeframeWeeks: w } = latest.current;
-      saveGoal({ startWeightKg: s, targetWeightKg: t, timeframeWeeks: w }).catch((err) =>
-        console.error('Failed to save goal:', err)
-      );
+      saveGoal({ startWeightKg: s, targetWeightKg: t, timeframeWeeks: w })
+        .then(refreshProgress)
+        .catch((err) => console.error('Failed to save goal:', err));
     }, SAVE_DEBOUNCE_MS);
-  }, []);
+  }, [refreshProgress]);
 
   const schedulePrefSave = useCallback(
     (update: PreferencesUpdate) => {
@@ -501,6 +513,12 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
               <Line {...trajectoryChartConfig} />
             </div>
           </Card>
+        </Col>
+      </Row>
+
+      <Row style={{ marginBottom: 24 }}>
+        <Col span={24}>
+          <GoalProgressCard progress={progress} />
         </Col>
       </Row>
 

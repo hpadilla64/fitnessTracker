@@ -8,6 +8,7 @@ import type {
   PreferencesUpdate,
   Goal,
   GoalUpdate,
+  GoalProgress,
   TimeRangeKey,
 } from '../types/api';
 
@@ -50,3 +51,5 @@ export const saveGoal = (update: GoalUpdate) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(update),
   });
+
+export const fetchGoalProgress = () => request<GoalProgress | null>('/api/goals/progress');
