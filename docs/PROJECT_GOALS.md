@@ -72,7 +72,7 @@ Do these in order. Each step should leave the app working.
 
 1. ~~**Local API server + DB.**~~ Done: Next.js app, SQLite, read API, preferences.
 2. **process-data.** Port the parser to TypeScript (`POST /api/process-data` as a background job), with a parity check against the Python output before the Python script is removed.
-3. **Goal persistence and progress tracking.** Store the goal, and chart actual weigh-ins against it in tab 2.
+3. ~~**Goal persistence and progress tracking.**~~ Done: goal saved via `/api/goals`, weigh-ins vs plan charted in tab 2 (`/api/goals/progress`).
 4. **Workout catalog fetcher** (wger.de).
 5. **AI recommendations** (Claude), with the current rule engine moved server-side as the fallback.
 
