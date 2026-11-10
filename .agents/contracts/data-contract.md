@@ -1,8 +1,8 @@
 # Data contract: backend ⇄ frontend
 
-The interface between `scripts/parse_health_data.py` (producer) and `src/` (consumer). The frontend codes against **this file**. TypeScript mirror: `src/types/index.ts`. Owner: backend role. Changes need orchestrator approval, and breaking changes need the user's.
+The interface between the backend (parser in `src/server/ingest/`, SQLite, `/api/*`) and the frontend (`src/`). The frontend codes against **this file**. TypeScript mirror: `src/types/index.ts` (domain) and `src/types/api.ts` (API). Owner: backend role. Changes need orchestrator approval, and breaking changes need the user's.
 
-All files are UTF-8 JSON in `public/data/`, served statically and fetched by `src/services/dataService.ts`.
+The domain shapes below are what the parser produces, what SQLite stores, and what the API serves (the headings keep the historical JSON file names).
 
 ## `profile.json` → `UserProfile` (object)
 
@@ -39,7 +39,7 @@ Rule: **sums use `0`, averages and point readings use `null`.** Consumers must n
 | type | string | same keys as `profile.workoutTypeCounts` |
 | startDate, endDate | string | HealthKit format `YYYY-MM-DD HH:MM:SS ±ZZZZ` (not ISO) |
 | durationMinutes, distanceKm, energyKcal | number | `0` = not recorded |
-| routePath | string \| null | key into `routes.json`; currently `null` for all workouts (routes are not yet linked) |
+| routePath | string \| null | key into routes (`GET /api/health/routes/[filename]`); currently `null` for all workouts (routes are not yet linked) |
 | routeData | GpxRoute \| null | optional; not emitted by the parser (frontend may attach at runtime) |
 
 ## `routes.json` → `Record<string, GpxRoute>`
@@ -73,12 +73,13 @@ The Next.js route handlers (`src/app/api/**`) serve the same domain shapes from 
 | `POST /api/process-data` | none (empty body or `{}`; anything else → 400) | `202 IngestJob` (state `running`). `409 { code: "CONFLICT" }` if a job is already running; `400 { code: "NO_INPUT" }` if `input/apple_health_export/export.xml` is missing. Runs in the background: streams `export.xml` + `workout-routes/*.gpx`, then replaces profile, daily_metrics, workouts and routes in **one transaction** (a failed or killed run leaves the previous data intact). Each run is logged in `ingest_runs` (`source: "ts-parser"`; `npm run ingest` logs `"cli"`, and a running CLI run also yields 409) |
 | `GET /api/process-data` | none | the latest `IngestJob`, or `null` if none ever ran. `phase` is set only while running (`records` → `routes` → `writing`); `progress` 0–1 over the whole job. A `running` row with no live job in this process (server restarted) is reported and stored as `failed` with `error: "interrupted"` (a `cli` run only after 15 min, since it runs in another process) |
 
-The JSON files above are the legacy Python parser's output and `npm run db:import-json`'s input. `POST /api/process-data` (the TS parser) writes the same shapes straight to SQLite; once parity is confirmed, the JSON files, the Python parser and the importer are removed.
+`POST /api/process-data` and `npm run ingest` run the TypeScript parser and write these shapes straight to SQLite. (The legacy Python parser and its JSON files were removed on 2026-11-09 after a full parity check.)
 
 ## Changelog
 
 Newest first. One line per change: date · file.field · change · breaking yes/no.
 
+- 2026-11-09 · all · Python parser, `public/data/*.json` and `db:import-json` removed; the TS parser is the only producer · no
 - 2026-11-09 · API · `POST/GET /api/process-data` added; `ApiError.code` gains `CONFLICT`, `NO_INPUT`; workouts' `distanceKm`/`energyKcal` now filled from `<WorkoutStatistics>` · no
 - 2026-11-09 · API · `GET /api/goals/progress` added (weigh-ins vs goal plan) · no
 - 2026-10-25 · API · `GET/PUT /api/goals` added (planner form persistence) · no

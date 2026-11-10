@@ -13,10 +13,7 @@
     "start": "next start -H 127.0.0.1 -p 3000",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:import-json": "tsx scripts/import-json.ts",
     "ingest": "tsx scripts/ingest.ts",
-    "compare-parsers": "tsx scripts/compare-parsers.ts",
-    "parse-data": "python3 scripts/parse_health_data.py",
     "check-personal-data": "python3 scripts/check_personal_data.py",
     "prepare": "git config core.hooksPath .githooks || true"
   },

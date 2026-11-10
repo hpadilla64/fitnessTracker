@@ -25,8 +25,7 @@ npm run dev                  # app + API on http://127.0.0.1:3000 (local only)
 npm run typecheck            # tsc --noEmit (fast; run after every change)
 npm run build                # production build (the "test suite" for now)
 npm run db:generate          # create a migration after editing src/server/db/schema.ts
-npm run db:import-json       # load public/data/*.json into data/pulsefit.db (until the TS parser lands)
-npm run parse-data           # legacy Python re-parse of input/ (slow: ~1.25 GB XML), only when the pipeline changed
+npm run ingest               # parse input/apple_health_export into data/pulsefit.db (~30 s; same as the dashboard's Import button)
 npm run check-personal-data  # scan tracked files for personal values
 ```
 
@@ -40,19 +39,19 @@ There is no unit-test runner or linter yet. Verification = type-check + build + 
 - Data shaping (filtering, aggregation) happens server-side in `src/server/`. `src/services/` is only the typed API client; components stay presentational where practical.
 - Route handlers stay thin (`runtime = 'nodejs'`): validate input with zod, call `src/server` repos, and return contract shapes. Server-only modules `import 'server-only'`.
 - Schema changes go through Drizzle migrations (`npm run db:generate`). Never edit the DB by hand.
-- Parser: streaming (`iterparse`) only — never load the full XML into memory. Stdlib only unless a dependency is agreed with the user.
+- Parser (`src/server/ingest/`): streaming (`saxes`) only — never load the full XML into memory. No new dependencies unless agreed with the user.
 
 ## Boundaries
 
 - **Always:** keep `src/types/`, the DB schema, the API handlers and the data contract in sync in the same task; run the verification commands before claiming done.
-- **Ask first:** adding dependencies, changing an API response shape, running the full `npm run parse-data`, deleting files, any call that costs money (AI requests).
+- **Ask first:** adding dependencies, changing an API response shape, running a full import (`npm run ingest` / `POST /api/process-data`), deleting files, any call that costs money (AI requests).
 - **Never:** hardcode personal values (date of birth, age, weight, blood type, totals, coordinates, …) in code or docs. Derive them from the imported data at runtime, and use neutral examples in docs. The pre-commit hook (`scripts/check_personal_data.py`, enabled via `core.hooksPath .githooks` by `npm install`) blocks them; never bypass it with `--no-verify`.
-- **Never:** upload, paste, or send anything from `input/`, `public/data/` or `data/` to an external service; it is personal health data. Never read `input/**/*.xml` whole (918 MB / 334 MB); stream or `head` it. Never hand-edit `public/data/*.json` or `data/pulsefit.db`; regenerate them. Never edit `.next/` or `node_modules/`.
+- **Never:** upload, paste, or send anything from `input/` or `data/` to an external service; it is personal health data. Never read `input/**/*.xml` whole (918 MB / 334 MB); stream or `head` it. Never hand-edit `data/pulsefit.db`; re-import it (`npm run ingest`). Never edit `.next/` or `node_modules/`.
 
 ## Token economy (all agents)
 
 Every token read is paid for on every later turn, so keep context small:
-- **Never `cat`/Read `public/data/*.json` or dump DB tables.** `routes.json` is 5.3 MB (~1.5M tokens), `daily_metrics.json` 1.4 MB. Query them with a one-line `python3 -c` that prints counts, keys or a few records.
+- **Never dump DB tables or full API responses.** Routes alone are several MB of points. Query with a one-line `sqlite3`/`python3 -c` or pipe `curl` through a filter that prints counts, keys or a few records.
 - Locate before reading: `grep -n` first, then read only the line range you need. Don't re-read a file you just edited.
 - Trim command output: `npm run build 2>&1 | tail -15`, `npx tsc --noEmit 2>&1 | head -30`.
 - Batch independent tool calls in one message.

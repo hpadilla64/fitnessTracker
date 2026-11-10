@@ -7,7 +7,6 @@ next-env.d.ts
 
 # Personal health data — never commit (see AGENTS.md › Boundaries)
 input/
-public/data/
 data/
 *.db
 *.db-wal

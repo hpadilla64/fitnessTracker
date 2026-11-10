@@ -51,15 +51,14 @@ Powered by your own Apple Health export (records, workouts and GPX routes), proc
 # 1. Install dependencies (also enables the personal-data pre-commit hook)
 npm install
 
-# 2. Unzip your Apple Health export into input/apple_health_export/, parse it,
-#    and load the result into the local SQLite database (data/pulsefit.db).
-#    Required on first run and whenever the export changes; input/ and data/ are never committed.
-npm run parse-data
-npm run db:import-json
+# 2. Unzip your Apple Health export into input/apple_health_export/
+#    (input/ and data/ are never committed)
 
 # 3. Start the app (dashboard + API, bound to 127.0.0.1)
 npm run dev
 ```
+
+Then click **Import Apple Health data** in the dashboard. It stream-parses the export into the local SQLite database (`data/pulsefit.db`) in the background, in well under a minute. Re-import from the header button whenever the export changes, or run `npm run ingest` from the terminal.
 
 Visit `http://127.0.0.1:3000`.
 
@@ -80,17 +79,15 @@ npm run start
 fitnessTracker/
 ├── input/apple_health_export/       # your Apple Health export (git-ignored)
 ├── data/pulsefit.db                 # local SQLite database (git-ignored)
-├── public/data/                     # legacy parser output / import format (git-ignored)
 ├── scripts/
-│   ├── parse_health_data.py         # legacy streaming parser (until the TS port lands)
-│   ├── import-json.ts               # loads public/data/*.json into SQLite
+│   ├── ingest.ts                    # npm run ingest: import the export from the terminal
 │   └── check_personal_data.py       # pre-commit guard against hardcoded personal values
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx, page.tsx     # Next.js shell (dashboard is a client-only component)
-│   │   └── api/                     # route handlers: status, health/*, workouts, preferences
+│   │   └── api/                     # route handlers: status, health/*, workouts, preferences, goals, process-data
 │   ├── components/                  # Dashboard + tabs (metrics, goal planner, workouts/routes)
-│   ├── server/                      # server-only: db (Drizzle schema, migrations, repos), aggregation
+│   ├── server/                      # db (Drizzle schema, migrations, repos), aggregation, ingest (parser + import job)
 │   ├── services/                    # typed API client + (for now) client-side recommendation engine
 │   └── types/                       # domain types (index.ts) and API types (api.ts)
 ├── docs/                            # PROJECT_GOALS.md (roadmap), v1 spec and plan

@@ -7,7 +7,7 @@ You own the user's request end to end: understand it, decide whether to delegate
 | Role | File | Owns (write access) | Use for |
 |---|---|---|---|
 | frontend | `roles/frontend.md` | `src/`, `index.html`, `vite.config.ts`, `src/index.css` | UI, charts, tabs, client services, TS types |
-| backend | `roles/backend.md` | `scripts/`, `public/data/` (by regeneration), `contracts/data-contract.md` | Parsing, aggregation, new metrics, data shape, any future API/server |
+| backend | `roles/backend.md` | `src/server/`, `src/app/api/`, `scripts/`, `data/` (by re-import), `contracts/data-contract.md` | Parsing, aggregation, new metrics, data shape, any future API/server |
 | qa | `roles/qa.md` | nothing in source (writes only to its scratch/run folder) | Independent verification: build, type-check, visual and data checks |
 
 Shared files (`src/types/index.ts`, `package.json`, `AGENTS.md`, `.agents/**`) change only through you, or through a single subagent you name in its brief.

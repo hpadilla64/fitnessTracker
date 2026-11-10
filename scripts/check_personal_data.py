@@ -3,8 +3,7 @@
 Block commits that contain personal health data.
 
 Builds a list of distinctive personal values from the local, git-ignored
-data store (data/pulsefit.db, falling back to the public/data/*.json import
-files): date of birth, weights, lifetime totals, GPS start points
+data store (data/pulsefit.db): date of birth, weights, lifetime totals, GPS start points
 and scans files for them, so real values never get hardcoded into tracked
 code or docs. Also rejects any staged path under input/ or public/data/.
 
@@ -21,19 +20,10 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(ROOT, "public", "data")
 DB_PATH = os.path.join(ROOT, "data", "pulsefit.db")
 BLOCKED_PATHS = ("input/", "public/data/", "data/")
 BLOCKED_SUFFIXES = (".db", ".db-wal", ".db-shm", ".sqlite")
 SKIP_FILES = {"package-lock.json", "scripts/check_personal_data.py"}
-
-
-def load(name):
-    try:
-        with open(os.path.join(DATA_DIR, name)) as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return None
 
 
 def number_variants(value):
@@ -49,7 +39,7 @@ def number_variants(value):
 
 
 def load_from_db():
-    """(profile dict in the JSON field names, list of route start points) or (None, None)."""
+    """(profile dict in the API field names, list of route start points) or (None, None)."""
     if not os.path.exists(DB_PATH):
         return None, None
     try:
@@ -77,10 +67,6 @@ def load_from_db():
 
 def build_patterns():
     profile, starts = load_from_db()
-    if not profile:
-        profile = load("profile.json")
-        routes_json = load("routes.json") or {}
-        starts = [r.get("startPoint") or {} for r in routes_json.values()]
     if not profile:
         return []
 
@@ -144,7 +130,7 @@ def main():
 
     patterns = build_patterns()
     if not patterns:
-        print("check_personal_data: public/data/profile.json not found; value scan skipped", file=sys.stderr)
+        print("check_personal_data: no imported data in data/pulsefit.db; value scan skipped", file=sys.stderr)
 
     for f in files:
         if f in SKIP_FILES or f.startswith(BLOCKED_PATHS) or f.endswith(BLOCKED_SUFFIXES):

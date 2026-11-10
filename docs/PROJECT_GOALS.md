@@ -12,7 +12,7 @@ Read the user's Apple Health export (copied into `input/`) and show it in a dash
 
 - **Runs locally.** Frontend and backend run on the user's machine. No hosting, no accounts.
 - **Single user**: the owner of the health export.
-- **Health data stays local.** Nothing from `input/`, `public/data/` or `data/` leaves the machine, except the minimum an approved web or AI call needs. The user must approve what is sent (see `AGENTS.md` › Boundaries).
+- **Health data stays local.** Nothing from `input/` or `data/` leaves the machine, except the minimum an approved web or AI call needs. The user must approve what is sent (see `AGENTS.md` › Boundaries).
 
 ## Features
 
@@ -44,7 +44,7 @@ The backend is not a single program. The **backend role owns all of these proces
 
 | Process | Purpose | Status |
 |---|---|---|
-| Health data ingestion | Stream-parse `input/` → `public/data/*.json` (`scripts/parse_health_data.py`) | exists |
+| Health data ingestion | Stream-parse `input/` into SQLite (`src/server/ingest/`, `POST /api/process-data`, `npm run ingest`) | done |
 | Local API server | Serve health data, goals, progress and recommendations to the frontend (Next.js route handlers over SQLite) | read API + preferences done |
 | Workout catalog fetcher | Fetch workout plans and exercises from a web source; store them locally | planned (source TBD) |
 | AI recommender | Combine health data, the goal, days per week and the catalog into a suggested routine | planned (provider TBD) |
@@ -71,7 +71,7 @@ The frontend⇄backend interface is the HTTP API defined in `.agents/contracts/d
 Do these in order. Each step should leave the app working.
 
 1. ~~**Local API server + DB.**~~ Done: Next.js app, SQLite, read API, preferences.
-2. **process-data.** Port the parser to TypeScript (`POST /api/process-data` as a background job), with a parity check against the Python output before the Python script is removed.
+2. ~~**process-data.**~~ Done: TypeScript parser as a background job (`POST /api/process-data`, dashboard Import button), parity-checked against Python before the Python script was removed. Workouts now carry distance and energy.
 3. ~~**Goal persistence and progress tracking.**~~ Done: goal saved via `/api/goals`, weigh-ins vs plan charted in tab 2 (`/api/goals/progress`).
 4. **Workout catalog fetcher** (wger.de).
 5. **AI recommendations** (Claude), with the current rule engine moved server-side as the fallback.

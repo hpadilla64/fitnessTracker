@@ -1,4 +1,4 @@
-// Streaming port of scripts/parse_health_data.py. No server-only/Next imports: runs under tsx too.
+// Streaming Apple Health export parser (ported from the former Python parser, parity-checked). No server-only/Next imports: runs under tsx too.
 import fs from 'node:fs';
 import path from 'node:path';
 import { SaxesParser } from 'saxes';
@@ -217,7 +217,7 @@ export async function parseExport(inputDir: string, onProgress?: ProgressFn): Pr
           w: {
             id: `workout-${workouts.length + 1}`, type: wtype, startDate: a.startDate ?? '', endDate: a.endDate ?? '',
             durationMinutes: pyRound(dur, 1), distanceKm: attrDist, energyKcal: attrEn,
-            // Python never links a route (iterparse clears WorkoutRoute children first); kept as-is.
+            // Routes are never linked (the Python parser cleared WorkoutRoute children before reading them); kept for parity, see roadmap.
             routePath: null,
           } as Workout,
           dist: 0, hasDist: false, en: 0, hasEn: false,
