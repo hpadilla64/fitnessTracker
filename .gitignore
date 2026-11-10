@@ -25,6 +25,7 @@ data/
 
 # OS / editor
 .DS_Store
+._*
 *.log
 .vscode/
 .idea/

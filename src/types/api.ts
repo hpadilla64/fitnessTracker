@@ -72,3 +72,21 @@ export interface GoalUpdate {
   targetWeightKg: number;
   timeframeWeeks: number;
 }
+
+export interface WeightPoint {
+  date: string; // YYYY-MM-DD
+  weightKg: number;
+}
+
+export type GoalProgressStatus = 'ahead' | 'on_track' | 'behind' | 'no_data';
+
+export interface GoalProgress {
+  goal: Goal;
+  startDate: string; // YYYY-MM-DD, date part of goal.createdAt
+  endDate: string; // startDate + timeframeWeeks
+  plan: WeightPoint[]; // weekly, linear from startWeightKg to targetWeightKg
+  weighIns: WeightPoint[]; // from startDate − 8 weeks to endDate, ascending
+  latest: (WeightPoint & { plannedKg: number; deltaKg: number }) | null; // latest weigh-in in [startDate, endDate]
+  status: GoalProgressStatus;
+  dataEndDate: string | null; // last date in the imported health data
+}

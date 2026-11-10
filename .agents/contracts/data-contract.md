@@ -69,6 +69,7 @@ The Next.js route handlers (`src/app/api/**`) serve the same domain shapes from 
 | `PUT /api/preferences` | `PreferencesUpdate` (partial; unknown keys → 400) | the merged `UserPreferences` |
 | `GET /api/goals` | none | the active `Goal`, or `null` (200) if none was saved |
 | `PUT /api/goals` | `GoalUpdate`: all fields required; weights 30–300 kg, timeframe 2–52 weeks, integers not required; unknown keys → 400 | the active `Goal`. If the values equal the active goal, it's returned unchanged (no new row); otherwise the previous goal is archived (`active=false`) and a new one is created |
+| `GET /api/goals/progress` | none | `GoalProgress`, or `null` (200) if no active goal. `startDate` = date part of the goal's `createdAt` (UTC); `endDate` = start + `timeframeWeeks`. `plan`: one point per week (incl. both ends), linear from `startWeightKg` to `targetWeightKg`, 1 decimal. `weighIns`: non-null `weightKg` days from start − 8 weeks to `endDate`. `latest`: the newest weigh-in in [start, end] with the linearly interpolated `plannedKg` and `deltaKg = weightKg − plannedKg`, else `null`. `status`: `no_data` if `latest` is null; else `on_track` if \|delta\| ≤ 0.5 kg, otherwise `ahead`/`behind` by direction of the goal (loss: below plan = ahead; gain: above plan = ahead). `dataEndDate` = last date in `daily_metrics`, or `null` |
 
 The JSON files above remain the **import format**: `npm run db:import-json` loads them into SQLite until `POST /api/process-data` (phase 2) replaces it.
 
@@ -76,6 +77,7 @@ The JSON files above remain the **import format**: `npm run db:import-json` load
 
 Newest first. One line per change: date · file.field · change · breaking yes/no.
 
+- 2026-11-09 · API · `GET /api/goals/progress` added (weigh-ins vs goal plan) · no
 - 2026-10-25 · API · `GET/PUT /api/goals` added (planner form persistence) · no
 - 2026-10-25 · API · phase-1 endpoints (status, health, workouts, routes, preferences) defined; data now served from SQLite · no
 - 2026-10-25 · profile.sex/dob/bloodType/currentWeight/currentBMI/currentLeanMass · now nullable; parser no longer hardcodes defaults · no (consumers handle null)
