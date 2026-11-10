@@ -70,13 +70,16 @@ The Next.js route handlers (`src/app/api/**`) serve the same domain shapes from 
 | `GET /api/goals` | none | the active `Goal`, or `null` (200) if none was saved |
 | `PUT /api/goals` | `GoalUpdate`: all fields required; weights 30–300 kg, timeframe 2–52 weeks, integers not required; unknown keys → 400 | the active `Goal`. If the values equal the active goal, it's returned unchanged (no new row); otherwise the previous goal is archived (`active=false`) and a new one is created |
 | `GET /api/goals/progress` | none | `GoalProgress`, or `null` (200) if no active goal. `startDate` = date part of the goal's `createdAt` (UTC); `endDate` = start + `timeframeWeeks`. `plan`: one point per week (incl. both ends), linear from `startWeightKg` to `targetWeightKg`, 1 decimal. `weighIns`: non-null `weightKg` days from start − 8 weeks to `endDate`. `latest`: the newest weigh-in in [start, end] with the linearly interpolated `plannedKg` and `deltaKg = weightKg − plannedKg`, else `null`. `status`: `no_data` if `latest` is null; else `on_track` if \|delta\| ≤ 0.5 kg, otherwise `ahead`/`behind` by direction of the goal (loss: below plan = ahead; gain: above plan = ahead). `dataEndDate` = last date in `daily_metrics`, or `null` |
+| `POST /api/process-data` | none (empty body or `{}`; anything else → 400) | `202 IngestJob` (state `running`). `409 { code: "CONFLICT" }` if a job is already running; `400 { code: "NO_INPUT" }` if `input/apple_health_export/export.xml` is missing. Runs in the background: streams `export.xml` + `workout-routes/*.gpx`, then replaces profile, daily_metrics, workouts and routes in **one transaction** (a failed or killed run leaves the previous data intact). Each run is logged in `ingest_runs` (`source: "ts-parser"`; `npm run ingest` logs `"cli"`, and a running CLI run also yields 409) |
+| `GET /api/process-data` | none | the latest `IngestJob`, or `null` if none ever ran. `phase` is set only while running (`records` → `routes` → `writing`); `progress` 0–1 over the whole job. A `running` row with no live job in this process (server restarted) is reported and stored as `failed` with `error: "interrupted"` (a `cli` run only after 15 min, since it runs in another process) |
 
-The JSON files above remain the **import format**: `npm run db:import-json` loads them into SQLite until `POST /api/process-data` (phase 2) replaces it.
+The JSON files above are the legacy Python parser's output and `npm run db:import-json`'s input. `POST /api/process-data` (the TS parser) writes the same shapes straight to SQLite; once parity is confirmed, the JSON files, the Python parser and the importer are removed.
 
 ## Changelog
 
 Newest first. One line per change: date · file.field · change · breaking yes/no.
 
+- 2026-11-09 · API · `POST/GET /api/process-data` added; `ApiError.code` gains `CONFLICT`, `NO_INPUT`; workouts' `distanceKm`/`energyKcal` now filled from `<WorkoutStatistics>` · no
 - 2026-11-09 · API · `GET /api/goals/progress` added (weigh-ins vs goal plan) · no
 - 2026-10-25 · API · `GET/PUT /api/goals` added (planner form persistence) · no
 - 2026-10-25 · API · phase-1 endpoints (status, health, workouts, routes, preferences) defined; data now served from SQLite · no

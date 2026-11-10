@@ -13,7 +13,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INPUT_DIR = os.path.join(BASE_DIR, "input", "apple_health_export")
 EXPORT_XML = os.path.join(INPUT_DIR, "export.xml")
 ROUTES_DIR = os.path.join(INPUT_DIR, "workout-routes")
-OUTPUT_DIR = os.path.join(BASE_DIR, "public", "data")
+OUTPUT_DIR = os.environ.get("PULSEFIT_OUT") or os.path.join(BASE_DIR, "public", "data")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 

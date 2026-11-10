@@ -14,6 +14,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:import-json": "tsx scripts/import-json.ts",
+    "ingest": "tsx scripts/ingest.ts",
+    "compare-parsers": "tsx scripts/compare-parsers.ts",
     "parse-data": "python3 scripts/parse_health_data.py",
     "check-personal-data": "python3 scripts/check_personal_data.py",
     "prepare": "git config core.hooksPath .githooks || true"
@@ -32,6 +34,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-leaflet": "5.0.0",
+    "saxes": "6.0.0",
     "server-only": "0.0.1",
     "zod": "4.6.6"
   },
