@@ -36,6 +36,7 @@ import { UserProfile, WeightGoalConfig, RoutineExercise, TrainingFocus } from '@
 import { evaluateWeightGoalAndRecommendRoutine, DEFAULT_WEIGHT_KG } from '@/services/recommendationEngine';
 import { fetchGoal, saveGoal, fetchGoalProgress } from '@/services/dataService';
 import GoalProgressCard from '@/components/GoalProgressCard';
+import ExerciseCatalogCard from '@/components/ExerciseCatalogCard';
 import type { GoalProgress } from '@/types/api';
 import type { UserPreferences, PreferencesUpdate } from '@/types/api';
 
@@ -589,6 +590,8 @@ export const WeightGoalPlannerTab: React.FC<WeightGoalPlannerTabProps> = ({ prof
           }}
         />
       </Card>
+
+      <ExerciseCatalogCard />
 
       {/* Detail Modal when clicking "View Plan" */}
       <Modal

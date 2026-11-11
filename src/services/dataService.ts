@@ -10,6 +10,9 @@ import type {
   GoalUpdate,
   GoalProgress,
   IngestJob,
+  CatalogSummary,
+  CatalogExercisesResponse,
+  CatalogSyncJob,
   TimeRangeKey,
 } from '../types/api';
 
@@ -21,7 +24,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     let msg = `${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
-      if (body?.error) msg = body.error;
+      if (body?.error) msg = body.code ? `${body.error} (${body.code})` : body.error;
     } catch {
       /* non-JSON error body */
     }
@@ -57,3 +60,23 @@ export const fetchGoalProgress = () => request<GoalProgress | null>('/api/goals/
 
 export const startProcessData = () => request<IngestJob>('/api/process-data', { method: 'POST' });
 export const fetchIngestJob = () => request<IngestJob | null>('/api/process-data');
+
+export interface CatalogExercisesParams {
+  q?: string;
+  category?: string;
+  equipment?: string;
+  muscle?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export const fetchCatalogSummary = () => request<CatalogSummary>('/api/catalog');
+export const fetchCatalogExercises = (params: CatalogExercisesParams = {}) => {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '') qs.set(k, String(v));
+  });
+  return request<CatalogExercisesResponse>(`/api/catalog/exercises?${qs}`);
+};
+export const startCatalogSync = () => request<CatalogSyncJob>('/api/catalog/sync', { method: 'POST' });
+export const fetchCatalogSync = () => request<CatalogSyncJob | null>('/api/catalog/sync');
