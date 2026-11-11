@@ -104,3 +104,41 @@ export interface GoalProgress {
   status: GoalProgressStatus;
   dataEndDate: string | null; // last date in the imported health data
 }
+
+// Workout catalog (wger.de). Spec: .agents/contracts/data-contract.md › API › /api/catalog*
+export interface CatalogSyncJob {
+  id: number;
+  state: IngestState;
+  progress: number | null; // 0–1 (pages fetched / total pages)
+  exerciseCount: number | null; // exercises stored, once succeeded
+  startedAt: string; // ISO timestamp
+  finishedAt: string | null;
+  error: string | null;
+}
+
+export interface CatalogExercise {
+  id: number; // wger exercise id
+  name: string; // English translation
+  description: string; // English, plain text (HTML stripped), may be ""
+  category: string | null; // e.g. "Legs"
+  muscles: string[]; // primary, English names
+  musclesSecondary: string[];
+  equipment: string[]; // e.g. ["Dumbbell"]; [] = none listed
+  license: string | null; // short name, e.g. "CC-BY-SA 4"
+  licenseUrl: string | null;
+  author: string | null; // license_author
+}
+
+export interface CatalogSummary {
+  exerciseCount: number; // 0 if never synced
+  lastSyncedAt: string | null; // finishedAt of the last successful sync
+  categories: { name: string; count: number }[]; // sorted by name
+  equipment: string[]; // distinct, sorted
+  muscles: string[]; // distinct primary + secondary, sorted
+  source: { name: 'wger'; url: 'https://wger.de'; license: 'CC-BY-SA 4' };
+}
+
+export interface CatalogExercisesResponse {
+  total: number; // matches before limit/offset
+  items: CatalogExercise[]; // sorted by name
+}

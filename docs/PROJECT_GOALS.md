@@ -46,7 +46,7 @@ The backend is not a single program. The **backend role owns all of these proces
 |---|---|---|
 | Health data ingestion | Stream-parse `input/` into SQLite (`src/server/ingest/`, `POST /api/process-data`, `npm run ingest`) | done |
 | Local API server | Serve health data, goals, progress and recommendations to the frontend (Next.js route handlers over SQLite) | read API + preferences done |
-| Workout catalog fetcher | Fetch workout plans and exercises from a web source; store them locally | planned (source TBD) |
+| Workout catalog fetcher | Fetch exercises from wger.de into SQLite (`src/server/catalog/`, `POST /api/catalog/sync`, `npm run catalog:sync`) | done |
 | AI recommender | Combine health data, the goal, days per week and the catalog into a suggested routine | planned (provider TBD) |
 
 Target flow:
@@ -54,7 +54,7 @@ Target flow:
 ```mermaid
 flowchart LR
   IN[input/ Apple Health export] --> ING[Ingestion] --> DATA[(Health data)]
-  WEB[Workout web source - TBD] --> FET[Catalog fetcher] --> CAT[(Workout catalog)]
+  WEB[wger.de exercise API] --> FET[Catalog fetcher] --> CAT[(Workout catalog)]
   DATA --> AI[AI recommender]
   CAT --> AI
   GOAL[(Goals and preferences)] --> AI
@@ -73,7 +73,7 @@ Do these in order. Each step should leave the app working.
 1. ~~**Local API server + DB.**~~ Done: Next.js app, SQLite, read API, preferences.
 2. ~~**process-data.**~~ Done: TypeScript parser as a background job (`POST /api/process-data`, dashboard Import button), parity-checked against Python before the Python script was removed. Workouts now carry distance and energy.
 3. ~~**Goal persistence and progress tracking.**~~ Done: goal saved via `/api/goals`, weigh-ins vs plan charted in tab 2 (`/api/goals/progress`).
-4. **Workout catalog fetcher** (wger.de).
+4. ~~**Workout catalog fetcher.**~~ Done: wger.de exercises synced into SQLite as a background job (`POST /api/catalog/sync`, `npm run catalog:sync`), served by `/api/catalog*`, and browsable in tab 2 with CC-BY-SA attribution.
 5. **AI recommendations** (Claude), with the current rule engine moved server-side as the fallback.
 
 Fixing the route linkage (tab 3) is independent and can be done at any time.

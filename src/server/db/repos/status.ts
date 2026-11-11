@@ -10,7 +10,8 @@ export function getStatus(): StatusResponse {
   const p = db.select({ s: profile.dateStart, e: profile.dateEnd }).from(profile).get();
   const run = db.select({ f: ingestRuns.finishedAt }).from(ingestRuns)
     .where(eq(ingestRuns.state, 'succeeded')).orderBy(desc(ingestRuns.id)).get();
-  const sync = db.select({ s: catalogSyncs.syncedAt }).from(catalogSyncs).orderBy(desc(catalogSyncs.id)).get();
+  const sync = db.select({ s: catalogSyncs.finishedAt }).from(catalogSyncs)
+    .where(eq(catalogSyncs.state, 'succeeded')).orderBy(desc(catalogSyncs.id)).get();
   return {
     hasData: !!p && counts.days > 0,
     lastProcessedAt: run?.f ?? null,

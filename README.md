@@ -60,6 +60,8 @@ npm run dev
 
 Then click **Import Apple Health data** in the dashboard. It stream-parses the export into the local SQLite database (`data/pulsefit.db`) in the background, in well under a minute. Re-import from the header button whenever the export changes, or run `npm run ingest` from the terminal.
 
+The **Exercise catalog** card in the Weight Goals tab syncs the public [wger.de](https://wger.de) exercise database (CC-BY-SA 4.0) into the same database. Click **Sync catalog**, or run `npm run catalog:sync`. Only public requests are made, and nothing about you is sent.
+
 Visit `http://127.0.0.1:3000`.
 
 ### Production Build & Preview
@@ -81,6 +83,7 @@ fitnessTracker/
 ├── data/pulsefit.db                 # local SQLite database (git-ignored)
 ├── scripts/
 │   ├── ingest.ts                    # npm run ingest: import the export from the terminal
+│   ├── catalog-sync.ts              # npm run catalog:sync: fetch the wger.de exercise catalog
 │   └── check_personal_data.py       # pre-commit guard against hardcoded personal values
 ├── src/
 │   ├── app/

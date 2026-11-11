@@ -26,6 +26,7 @@ npm run typecheck            # tsc --noEmit (fast; run after every change)
 npm run build                # production build (the "test suite" for now)
 npm run db:generate          # create a migration after editing src/server/db/schema.ts
 npm run ingest               # parse input/apple_health_export into data/pulsefit.db (~30 s; same as the dashboard's Import button)
+npm run catalog:sync         # fetch the wger.de exercise catalog into SQLite (~5 s, public GETs only)
 npm run check-personal-data  # scan tracked files for personal values
 ```
 

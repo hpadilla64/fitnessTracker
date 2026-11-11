@@ -92,17 +92,24 @@ export const catalogExercises = sqliteTable('catalog_exercises', {
   id: integer('id').primaryKey(), // wger id
   name: text('name').notNull(),
   category: text('category'),
+  description: text('description').notNull().default(''),
   muscles: text('muscles', { mode: 'json' }).$type<string[]>().notNull(),
+  musclesSecondary: text('muscles_secondary', { mode: 'json' }).$type<string[]>().notNull().default([]),
   equipment: text('equipment', { mode: 'json' }).$type<string[]>().notNull(),
   license: text('license'),
+  licenseUrl: text('license_url'),
   author: text('author'),
 });
 
 export const catalogSyncs = sqliteTable('catalog_syncs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  syncedAt: text('synced_at').notNull(),
-  exerciseCount: integer('exercise_count').notNull(),
-  source: text('source').notNull(),
+  state: text('state').notNull().default('running'),
+  startedAt: text('synced_at').notNull(), // column predates the job fields; holds the start time
+  finishedAt: text('finished_at'),
+  progress: real('progress'),
+  error: text('error'),
+  exerciseCount: integer('exercise_count'),
+  source: text('source').notNull(), // 'api' | 'cli'
 });
 
 export const recommendations = sqliteTable('recommendations', {
