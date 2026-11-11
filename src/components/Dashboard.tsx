@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ConfigProvider,
   Layout,
@@ -31,6 +31,7 @@ import {
 } from '@/services/dataService';
 import { UserProfile } from '@/types';
 import type { StatusResponse, WorkoutSummary, TabKey, PreferencesUpdate, UserPreferences } from '@/types/api';
+import { ImportDataControl } from './ImportDataControl';
 import { HealthMetricsTab } from './tabs/HealthMetricsTab';
 import { WeightGoalPlannerTab } from './tabs/WeightGoalPlannerTab';
 import { WorkoutsRoutesTab } from './tabs/WorkoutsRoutesTab';
@@ -65,27 +66,30 @@ export const Dashboard: React.FC = () => {
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const st = await fetchStatus();
-        setStatus(st);
-        if (st.hasData) {
-          const [prof, wk, prefs] = await Promise.all([fetchProfile(), fetchWorkouts(), fetchPreferences()]);
-          setProfile(prof);
-          setWorkouts(wk);
-          setPreferences(prefs);
-          setActiveTab(prefs.activeTab);
-          setTimeRange(prefs.timeRange);
-        }
-      } catch (err) {
-        console.error('Failed to load health data:', err);
-        setError('Failed to load health data from the API. Ensure the data has been imported.');
-      } finally {
-        setLoading(false);
+  const loadAll = useCallback(async () => {
+    setError(null);
+    try {
+      const st = await fetchStatus();
+      setStatus(st);
+      if (st.hasData) {
+        const [prof, wk, prefs] = await Promise.all([fetchProfile(), fetchWorkouts(), fetchPreferences()]);
+        setProfile(prof);
+        setWorkouts(wk);
+        setPreferences(prefs);
+        setActiveTab(prefs.activeTab);
+        setTimeRange(prefs.timeRange);
       }
-    })();
+    } catch (err) {
+      console.error('Failed to load health data:', err);
+      setError('Failed to load health data from the API. Ensure the data has been imported.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   const handleTabChange = (key: string) => {
     setActiveTab(key as TabKey);
@@ -197,6 +201,10 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
+            <Space size={16} align="center">
+            {status?.hasData && (
+              <ImportDataControl lastProcessedAt={status.lastProcessedAt} onImported={loadAll} />
+            )}
             {/* User Profile Pill */}
             {profile && (
               <Space wrap size={8}>
@@ -212,6 +220,7 @@ export const Dashboard: React.FC = () => {
                 {profile.bloodType && <Tag color="gold">Blood: {profile.bloodType}</Tag>}
               </Space>
             )}
+            </Space>
           </div>
         </Header>
 
@@ -239,9 +248,17 @@ export const Dashboard: React.FC = () => {
               title="No health data imported yet"
               subTitle={
                 <>
-                  Import your Apple Health data by running <Text code>npm run db:import-json</Text> in the project
-                  folder, then reload this page.
+                  Place your Apple Health export at <Text code>input/apple_health_export/</Text>, then import it.
+                  This can take a few minutes.
                 </>
+              }
+              extra={
+                <ImportDataControl
+                  variant="primary"
+                  label="Import Apple Health data"
+                  lastProcessedAt={status.lastProcessedAt}
+                  onImported={loadAll}
+                />
               }
             />
           ) : (

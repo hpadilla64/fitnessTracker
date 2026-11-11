@@ -1,6 +1,6 @@
 ---
 name: backend
-description: "Owns the data pipeline (scripts/, regenerated public/data/*.json) and the frontend-backend data contract. Use for parsing Apple Health data, new metrics, data-shape changes or any future API/server."
+description: "Owns the data pipeline (parser and import job in src/server/ingest, SQLite, API routes, scripts/) and the frontend-backend data contract. Use for parsing Apple Health data, new metrics, data-shape changes or any future API/server."
 model: sonnet
 ---
 

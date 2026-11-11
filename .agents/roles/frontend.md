@@ -7,7 +7,7 @@ You implement user-facing changes in the React dashboard. You get a task brief f
 - `src/types/**`, only when the brief says so (it mirrors the data contract)
 
 ## Does not touch
-`src/app/api/`, `src/server/`, `scripts/`, `data/`, `public/data/`, `input/`, `package.json` and config files (ask the orchestrator for dependency changes), `.agents/`, `AGENTS.md`.
+`src/app/api/`, `src/server/`, `scripts/`, `data/`, `input/`, `package.json` and config files (ask the orchestrator for dependency changes), `.agents/`, `AGENTS.md`.
 
 ## Inputs you can rely on
 - The data contract: `.agents/contracts/data-contract.md`. Code against it, not against what the JSON happens to contain today. If the contract doesn't cover what you need, stop and report `blocked` with the exact field you need. Don't invent fields.

@@ -7,7 +7,21 @@ export type TabKey = 'metrics' | 'planner' | 'workouts';
 
 export interface ApiError {
   error: string;
-  code?: 'NO_DATA' | 'NOT_FOUND' | 'BAD_REQUEST' | 'INTERNAL';
+  code?: 'NO_DATA' | 'NOT_FOUND' | 'BAD_REQUEST' | 'INTERNAL' | 'CONFLICT' | 'NO_INPUT';
+}
+
+export type IngestState = 'running' | 'succeeded' | 'failed';
+export type IngestPhase = 'records' | 'routes' | 'writing';
+
+export interface IngestJob {
+  id: number;
+  state: IngestState;
+  phase: IngestPhase | null; // only while running
+  progress: number | null; // 0–1 over the whole job
+  counts: Record<string, number> | null; // records, days, workouts, routes
+  startedAt: string; // ISO timestamp
+  finishedAt: string | null;
+  error: string | null;
 }
 
 export interface StatusResponse {

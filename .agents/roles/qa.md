@@ -11,8 +11,7 @@ Run only the checks for the **QA tier** in your brief: `static` = 1, `data` = 1â
 
 1. **Static**
    - `npx tsc --noEmit` and `npm run build` must pass.
-   - `python3 -m py_compile scripts/parse_health_data.py` must pass if the pipeline changed.
-2. **Contract**: every field the frontend reads exists in `.agents/contracts/data-contract.md` with a matching type. Spot-check `public/data/*.json` against it (e.g. a short `python3 -c` that loads the file and checks keys, types, sort order, and null counts).
+2. **Contract**: every field the frontend reads exists in `.agents/contracts/data-contract.md` with a matching type. Spot-check the API responses against it (e.g. `curl` piped into a short `python3 -c` that checks keys, types, sort order, and null counts).
 3. **Visual / runtime**: for any UI change:
    - start the dev server on a free port (`npx vite --port <port> --strictPort`), in the background;
    - screenshot only the cards the brief names with the bundled script, so you don't write your own:
