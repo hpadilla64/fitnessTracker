@@ -9,7 +9,7 @@ PulseFit is a local Next.js app over a personal Apple Health export. One process
 
 | Half | Stack | Lives in |
 |---|---|---|
-| Backend | Next.js 16 route handlers, SQLite (`better-sqlite3` + Drizzle ORM), TypeScript. Legacy Python parser until the TS port lands | `src/app/api/`, `src/server/`, `scripts/`, data in `data/pulsefit.db` |
+| Backend | Next.js 16 route handlers, SQLite (`better-sqlite3` + Drizzle ORM), TypeScript. AI recommendations run the local `claude` CLI (Haiku), not the HTTP API | `src/app/api/`, `src/server/`, `scripts/`, data in `data/pulsefit.db` |
 | Frontend | React 19 client components, Ant Design 6, `@ant-design/plots` 2 (G2 v5), Framer Motion, react-leaflet 5 | `src/app/` (layout/page), `src/components/`, `src/services/` (API client) |
 
 The boundary between them is the HTTP API, specified in [`.agents/contracts/data-contract.md`](.agents/contracts/data-contract.md) and typed in `src/types/api.ts` (domain types in `src/types/index.ts`).
@@ -27,6 +27,7 @@ npm run build                # production build (the "test suite" for now)
 npm run db:generate          # create a migration after editing src/server/db/schema.ts
 npm run ingest               # parse input/apple_health_export into data/pulsefit.db (~30 s; same as the dashboard's Import button)
 npm run catalog:sync         # fetch the wger.de exercise catalog into SQLite (~5 s, public GETs only)
+claude --version             # AI recommendations need the Claude Code CLI installed and logged in (no model call)
 npm run check-personal-data  # scan tracked files for personal values
 ```
 
@@ -45,7 +46,7 @@ There is no unit-test runner or linter yet. Verification = type-check + build + 
 ## Boundaries
 
 - **Always:** keep `src/types/`, the DB schema, the API handlers and the data contract in sync in the same task; run the verification commands before claiming done.
-- **Ask first:** adding dependencies, changing an API response shape, running a full import (`npm run ingest` / `POST /api/process-data`), deleting files, any call that costs money (AI requests).
+- **Ask first:** adding dependencies, changing an API response shape, running a full import (`npm run ingest` / `POST /api/process-data`), deleting files, any call that costs money or plan usage (AI requests: running `claude -p`, or any app action that does).
 - **Never:** hardcode personal values (date of birth, age, weight, blood type, totals, coordinates, …) in code or docs. Derive them from the imported data at runtime, and use neutral examples in docs. The pre-commit hook (`scripts/check_personal_data.py`, enabled via `core.hooksPath .githooks` by `npm install`) blocks them; never bypass it with `--no-verify`.
 - **Never:** upload, paste, or send anything from `input/` or `data/` to an external service; it is personal health data. Never read `input/**/*.xml` whole (918 MB / 334 MB); stream or `head` it. Never hand-edit `data/pulsefit.db`; re-import it (`npm run ingest`). Never edit `.next/` or `node_modules/`.
 
