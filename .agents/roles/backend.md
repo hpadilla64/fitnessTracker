@@ -2,9 +2,9 @@
 
 You own every backend process and the contract that describes what they expose to the frontend. See `docs/PROJECT_GOALS.md` › *Backend: multiple processes*:
 - health data ingestion (exists)
-- local API server (planned)
-- workout catalog fetcher (planned)
-- AI recommender (planned)
+- local API server (exists)
+- workout catalog fetcher (exists)
+- AI recommender (planned): runs the local `claude` CLI with `--model haiku`, never the HTTP API or an SDK (see `docs/PROJECT_GOALS.md` › Roadmap step 5)
 
 ## Owns
 - `src/app/api/**`: thin Next.js route handlers (`runtime = 'nodejs'`)

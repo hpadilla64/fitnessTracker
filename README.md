@@ -44,7 +44,8 @@ Powered by your own Apple Health export (records, workouts and GPX routes), proc
 ### Prerequisites
 - Node.js 24 LTS (`nvm use` reads `.nvmrc`)
 - npm v10+
-- Python 3 (for the legacy parser, until the TypeScript port lands)
+- Python 3 (for the `check-personal-data` pre-commit hook)
+- [Claude Code](https://docs.claude.com/en/docs/claude-code) CLI, installed and logged in (`claude --version` should work in the shell that runs `npm run dev`). Only needed for AI routine recommendations, which run the CLI locally with the Haiku model and use your Claude plan. Without it, the app falls back to the built-in rule engine.
 
 ### Quick Start
 ```bash
