@@ -298,7 +298,8 @@ function generateWeeklyRoutine(input: RoutineInput): RoutineExercise[] {
     coachingTips: 'Muscles grow and recover during rest. Keep protein intake consistent at 1.6-2.0g per kg of body weight.',
   };
 
-  // Build the 7-day schedule according to chosen frequency and focus
+  // Build the 7-day schedule according to chosen frequency and focus.
+  // Exactly `daysPerWeek` non-rest days; active recovery counts as one of them (6 days only).
   const week = daysSchedule.map(({ day, activeIndex }) => {
     let session;
     let isRest = false;
@@ -308,7 +309,6 @@ function generateWeeklyRoutine(input: RoutineInput): RoutineExercise[] {
       if (activeIndex === 0) session = strengthUpper;
       else if (activeIndex === 2) session = strengthLower;
       else if (activeIndex === 4) session = focus === 'cardio' ? zone2Cardio : hiitConditioning;
-      else if (activeIndex === 5) session = activeRecovery;
       else {
         session = restDay;
         isRest = true;
@@ -319,7 +319,6 @@ function generateWeeklyRoutine(input: RoutineInput): RoutineExercise[] {
       else if (activeIndex === 1) session = zone2Cardio;
       else if (activeIndex === 3) session = strengthLower;
       else if (activeIndex === 5) session = focus === 'cardio' ? zone2Cardio : hiitConditioning;
-      else if (activeIndex === 2) session = activeRecovery;
       else {
         session = restDay;
         isRest = true;
@@ -331,13 +330,12 @@ function generateWeeklyRoutine(input: RoutineInput): RoutineExercise[] {
       else if (activeIndex === 2) session = strengthLower;
       else if (activeIndex === 4) session = hiitConditioning;
       else if (activeIndex === 5) session = zone2Cardio;
-      else if (activeIndex === 3) session = activeRecovery;
       else {
         session = restDay;
         isRest = true;
       }
     } else {
-      // 6 days: Mon - Sat
+      // 6 days: Mon - Sat (Thu = active recovery)
       if (activeIndex === 0) session = strengthUpper;
       else if (activeIndex === 1) session = zone2Cardio;
       else if (activeIndex === 2) session = strengthLower;
